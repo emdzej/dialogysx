@@ -223,9 +223,15 @@ checked against an independently known answer. The 41,758 records prove the
 _shape_ is right; they do not prove "this part fits this car". That needs one
 vehicle whose correct parts list is known from outside this data.
 
-**Phase 4 — the web client.** Plate view: PNG plus `TRepere` hotspots, parts
-table filtered by criteria. Then the navigation above it — PR group, assembly,
-plate — and part-number search.
+**Phase 4 — the web client. Done for browsing.** PR group → vehicle → assembly
+→ plate, with the drawing, callout hotspots positioned from `TRepere`, and the
+parts table filtered by applicability. 29 kB gzipped, no backend. Six browser
+tests cover the chain, including that every hotspot lands inside the image and
+that a pinned callout survives the mouse leaving.
+
+Still to do here: part-number search in the interface (the reader exists),
+answering an undecided criterion in place rather than only listing it, and the
+`codedSign` variant picker.
 
 **Phase 5 — repair documentation.** Two deliverables, because the source is two
 things (§5 of the format doc):

@@ -15,7 +15,12 @@
  */
 import type { PrGroup } from "@dialogysx/core";
 import { DataCursor } from "@dialogysx/raf";
-import { evalCondBloc, readCondBlocPool, type CondBloc, type ConditionContext } from "./conditions.js";
+import {
+  evalCondBloc,
+  readCondBlocPool,
+  type CondBloc,
+  type ConditionContext,
+} from "./conditions.js";
 import type { LocalVariable } from "./plate.js";
 
 /** One plate shown under an assembly, with the drawing it appears on. */

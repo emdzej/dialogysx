@@ -11,6 +11,7 @@
 import type { CriterionCode, PartRef, PrGroup, Repere, VehicleType } from "@dialogysx/core";
 import { decodeText, encodeKey, type IndexedRAF } from "@dialogysx/raf";
 import { CriteriaVocabulary } from "./criteria.js";
+import { describeBloc } from "./describe.js";
 import { DateBlock, type DateGroup } from "./dates.js";
 import { findDataset } from "./datasets.js";
 import { Disc, type FileSource } from "./disc.js";
@@ -30,12 +31,23 @@ import { GroupValues } from "./values.js";
 import { datesKey, VehicleContext, type VehicleSpec } from "./vehicle.js";
 
 /** One callout, ready to render: its position on the drawing and its parts. */
+/** An evaluated candidate plus its condition rendered into words. */
+export interface DescribedCandidate extends EvaluatedCandidate {
+  /**
+   * One string per OR'd alternative, resolved through the group's value table.
+   *
+   * Precomputed here because the interface does not hold the value table, and
+   * without it the operands render as bare indices.
+   */
+  conditionLines: string[];
+}
+
 export interface ResolvedRepere {
   repere: number;
   /** Position on the drawing, when `TRepere` has one for it. */
   position?: { x: number; y: number };
-  fits: EvaluatedCandidate[];
-  unknown: EvaluatedCandidate[];
+  fits: DescribedCandidate[];
+  unknown: DescribedCandidate[];
 }
 
 export interface ResolvedPlate {
@@ -140,7 +152,11 @@ export class CatalogueSession {
     if (!this.planches) return [];
     const out: string[] = [];
     for (const i of await this.planches.index1.findPrefix(encodeKey(pr))) {
-      out.push(decodeText(await this.planches.keyAt(i)).trim().slice(4));
+      out.push(
+        decodeText(await this.planches.keyAt(i))
+          .trim()
+          .slice(4),
+      );
     }
     return out;
   }
@@ -221,6 +237,13 @@ export class CatalogueSession {
     // Callout positions are keyed by the *drawing* number, not the plate name.
     const positions = drawing ? await this.reperePositions(drawing) : new Map<number, Repere>();
 
+    const values = await this.valuesFor(pr);
+    const describeOpts = { values, vocabulary: this.vocabulary };
+    const describe = (c: EvaluatedCandidate): DescribedCandidate => ({
+      ...c,
+      conditionLines: c.applicability ? describeBloc(c.applicability, describeOpts).lines : [],
+    });
+
     const questions = new Set<CriterionCode>();
     const reperes: ResolvedRepere[] = parsed.reperes.map((r) => {
       const { applies, unknown } = evaluateRepere(r, ctx);
@@ -237,8 +260,8 @@ export class CatalogueSession {
       return {
         repere: r.repere,
         position: pos ? { x: pos.x, y: pos.y } : undefined,
-        fits: applies,
-        unknown,
+        fits: applies.map(describe),
+        unknown: unknown.map(describe),
       };
     });
 
@@ -261,7 +284,11 @@ export class CatalogueSession {
     if (!this.organes) return [];
     const out: string[] = [];
     for (const i of await this.organes.index1.findPrefix(encodeKey(pr))) {
-      out.push(decodeText(await this.organes.keyAt(i)).trim().slice(4));
+      out.push(
+        decodeText(await this.organes.keyAt(i))
+          .trim()
+          .slice(4),
+      );
     }
     return out;
   }

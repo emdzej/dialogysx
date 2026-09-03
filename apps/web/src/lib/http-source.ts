@@ -54,6 +54,14 @@ export class HttpTreeSource implements FileSource {
   }
 
   /**
+   * Over HTTP the drawing is just a URL — no fetch needed, so the browser's own
+   * image cache does the work.
+   */
+  async imageUrl(relativePath: string): Promise<string | undefined> {
+    return this.url(relativePath);
+  }
+
+  /**
    * HTTP has no directory listing, so this returns the configured languages
    * rather than probing. Returning `[]` for anything else is honest: we do not
    * know, rather than "nothing is there".

@@ -53,6 +53,17 @@ export class LocalDirectorySource implements FileSource {
     return file === undefined ? undefined : new Uint8Array(await file.arrayBuffer());
   }
 
+  /**
+   * A picked directory has no URL, so mint a blob for the file.
+   *
+   * Blob URLs are revoked by `revokeImageUrl` once the `<img>` has swapped;
+   * leaking one per drawing would pin every image ever viewed in memory.
+   */
+  async imageUrl(relativePath: string): Promise<string | undefined> {
+    const file = await this.resolve(relativePath);
+    return file === undefined ? undefined : URL.createObjectURL(file);
+  }
+
   async listDirs(relativePath: string): Promise<string[]> {
     const parts = relativePath.split("/").filter((p) => p.length > 0);
     let dir = this.root;
@@ -67,4 +78,9 @@ export class LocalDirectorySource implements FileSource {
     }
     return out;
   }
+}
+
+/** Release a blob URL made by `LocalDirectorySource.imageUrl`. */
+export function revokeImageUrl(url: string | undefined): void {
+  if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
 }

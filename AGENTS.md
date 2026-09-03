@@ -127,6 +127,41 @@ here: it must report 0 failures and 9 data faults, no more and no fewer.
 the shape. Nobody has yet compared output against a vehicle whose right answer
 is known independently, so do not describe filtering as verified.
 
+## The browser client
+
+`apps/web` is Svelte 5 runes. The interesting logic is all in
+`@dialogysx/catalogue`; the components are presentational on purpose.
+
+- **Navigation follows the data**: PR group -> vehicle -> assembly -> plate. Not
+  a design preference — the drawing number lives only on the assembly record, so
+  a plate cannot be rendered without walking through one.
+- **A vehicle must be picked before plates appear.** Applicability is evaluated
+  against it, so the plate list is genuinely vehicle-dependent.
+- **Hover and pin are separate fields.** With one, `onmouseenter` set it and the
+  following click compared against what hover had just written, so clicking a
+  hotspot toggled the highlight straight back off. `activeRepere` is
+  `pinned ?? hovered`.
+- **Hotspots are positioned in percentages of the image's _measured_ natural
+  size**, not of 1000x820. Some drawings are a different size, and a hard-coded
+  denominator puts every hotspot in the wrong place on those.
+- **Condition text is precomputed in the session**, which holds the PR group's
+  value table. The interface cannot resolve operand indices, and a first cut
+  that rendered only names and operators produced
+  `"Type moteur = or NFMO = and ..."` — readable-looking nonsense.
+
+### Two bugs that only appear in a browser
+
+Both passed every server-side test:
+
+- **`fetch` must be bound.** `private readonly fetchImpl: typeof fetch = fetch`
+  makes `this.fetchImpl(...)` a _method_ call, so the browser's `fetch` gets the
+  reader as its `this` and throws "Illegal invocation". Node tolerates it. It
+  presented as the catalogue silently appearing absent, because `open()` treats
+  a throwing `size()` as "file not there".
+- **The dev server must answer `HEAD` without a body.** `HttpRangeReader.size()`
+  sends one per file; piping the payload into a HEAD response stalls the
+  request, which looked like the browser suite hanging on startup.
+
 ## Things that are the way they are on purpose
 
 - **Encoding is per file.** The `.utf` suffix means UTF-8; everything else is
@@ -186,7 +221,20 @@ Honest list, so nobody reports these as discoveries:
   documentation yet.
 - **No lint.** No eslint or prettier check runs in CI, because there is no CI.
   `pnpm format` exists and is manual.
-- **No browser tests.** The e2e shape ddtx uses is not set up here.
+- **The browser tests do not run by default and never run in CI.** They need a
+  dev server _and_ a data tree, so `pnpm test` alone skips all six — a green
+  unit run says nothing about the interface. Running them:
+
+  ```sh
+  DIALOGYSX_DATA=/path/to/tree pnpm --filter @dialogysx/web dev --port 5199
+  DIALOGYSX_E2E_URL=http://localhost:5199 pnpm test
+  ```
+
+  Assertions are **vitest's** `expect` plus Playwright's `waitFor`. The matchers
+  from `@playwright/test` (`toBeVisible`, `toHaveCount`) do not exist here and
+  fail with "Invalid Chai property", which is how the first run of that file
+  went.
+
 - **Only macOS can mount ISOs.** `import` shells out to `hdiutil`. Elsewhere it
   asks for mount points, which it accepts on any platform.
 - **`import` has no unit test for its copy/extract loop.** The component routing

@@ -15,6 +15,14 @@ export interface FileSource {
   readAll(relativePath: string): Promise<Uint8Array | undefined>;
   /** Immediate subdirectory names of a relative path. Used to list languages. */
   listDirs(relativePath: string): Promise<string[]>;
+  /**
+   * A URL an `<img>` can load, for the drawings.
+   *
+   * Optional because it is the one thing the backends cannot express
+   * identically: HTTP has a real URL, a picked directory has to mint a blob,
+   * and Node has neither. Returns `undefined` when the file is absent.
+   */
+  imageUrl?(relativePath: string): Promise<string | undefined>;
 }
 
 /** A dataset resolved against a source, ready to query. */

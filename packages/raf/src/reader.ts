@@ -82,11 +82,21 @@ export class BlobReader extends BaseReader {
 export class HttpRangeReader extends BaseReader {
   private cachedSize?: number;
 
+  private readonly fetchImpl: typeof fetch;
+
   constructor(
     private readonly url: string,
-    private readonly fetchImpl: typeof fetch = fetch,
+    fetchImpl?: typeof fetch,
   ) {
     super();
+    // Bind, do not just store. `private readonly fetchImpl: typeof fetch = fetch`
+    // looks equivalent but makes `this.fetchImpl(...)` a *method* call, so the
+    // browser's `fetch` receives the reader as its `this` and throws
+    // "Illegal invocation". Node's fetch tolerates it, so this passes every
+    // server-side test and fails only in a browser — where it presented as the
+    // catalogue silently appearing absent, because `open()` treats a throwing
+    // `size()` as "file not there".
+    this.fetchImpl = fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
   }
 
   async size(): Promise<number> {

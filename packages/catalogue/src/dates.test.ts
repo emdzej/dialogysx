@@ -196,9 +196,9 @@ describe("resolveDateCondition", () => {
   });
 
   it("is unknown in vue 0 without a build number", () => {
-    expect(
-      resolveDateCondition({ group: "dveh", vue: 0 }, Operator.Less, "0000723", {}),
-    ).toBe("unknown");
+    expect(resolveDateCondition({ group: "dveh", vue: 0 }, Operator.Less, "0000723", {})).toBe(
+      "unknown",
+    );
   });
 
   it("resolves an event to a build number in vue 1", () => {

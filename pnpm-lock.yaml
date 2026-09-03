@@ -10,6 +10,9 @@ importers:
       "@types/node":
         specifier: ^22.13.1
         version: 22.20.1
+      playwright-core:
+        specifier: ^1.62.1
+        version: 1.62.1
       prettier:
         specifier: ^3.5.1
         version: 3.9.6
@@ -1239,6 +1242,14 @@ packages:
       }
     engines: { node: ">=12" }
 
+  playwright-core@1.62.1:
+    resolution:
+      {
+        integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==,
+      }
+    engines: { node: ">=20" }
+    hasBin: true
+
   postcss@8.5.27:
     resolution:
       {
@@ -2019,6 +2030,8 @@ snapshots:
   picocolors@1.1.1: {}
 
   picomatch@4.0.7: {}
+
+  playwright-core@1.62.1: {}
 
   postcss@8.5.27:
     dependencies:

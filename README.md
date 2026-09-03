@@ -27,9 +27,11 @@ Working today:
 - `@dialogysx/catalogue` — the **applicability condition grammar**: all 41,758
   plates parse with every byte consumed, 423,076 callouts, 762,244 part
   candidates, three-valued evaluation.
-- `dialogysx` CLI — `import`, `verify`, `plates`, `datasets`, `keys`, `get`,
-  `criteria`.
-- A browser harness that opens a tree and queries it. 21 kB gzipped.
+- `dialogysx` CLI — `import`, `verify`, `plates`, `organes`, `datasets`, `keys`,
+  `get`, `criteria`.
+- **A working browser client**: PR group → vehicle → assembly → plate, with the
+  drawing, clickable callout hotspots, and the parts table filtered by
+  applicability. 29 kB gzipped, no backend.
 
 Measured over localhost: a 7.2 MB index preloads in 119 ms, a part-number
 lookup costs 12 ms, and a depth-3 envelope query returning 18 records costs
@@ -138,18 +140,29 @@ node $cli plates 0202N100110 -d "$DATA"
 node $cli plates -d "$DATA"
 ```
 
-The browser harness needs the tree served over HTTP with `Range` support (it
-rejects a host that ignores `Range` rather than reading the wrong bytes), or a
-Chromium browser for the local-folder path:
+### Browse it
+
+The dev server serves a tree at `/data` with `Range` support:
 
 ```sh
-pnpm dev
+DIALOGYSX_DATA=$PWD/data pnpm --filter @dialogysx/web dev
+```
+
+Then "Open URL". `Range` is required — the client rejects a host that ignores it
+rather than reading the wrong bytes. "Open folder" reads a mounted disc or an
+imported tree directly, on browsers with the File System Access API.
+
+Browser tests need both a server and a tree, so `pnpm test` alone skips them:
+
+```sh
+DIALOGYSX_DATA=$PWD/data pnpm --filter @dialogysx/web dev --port 5199
+DIALOGYSX_E2E_URL=http://localhost:5199 pnpm test
 ```
 
 | Script           | What it does                                              |
 | ---------------- | --------------------------------------------------------- |
 | `pnpm build`     | Build every package and the web app                       |
-| `pnpm dev`       | Run the browser client                                    |
+| `pnpm dev`       | Run the browser client (set `DIALOGYSX_DATA` for data)    |
 | `pnpm test`      | Unit tests                                                |
 | `pnpm typecheck` | Packages via `tsc`, and the Svelte app via `svelte-check` |
 | `pnpm check`     | Build, typecheck and test                                 |
@@ -163,7 +176,7 @@ apps/
 packages/
   core       shared types for the catalogue format
   raf        the storage engine and the three read backends
-  catalogue  parts domain: envelope, criteria, callouts, part search
+  catalogue  parts domain: conditions, dates, plates, assemblies, session
 docs/
 re/tools/    reverse-engineering scratch (the Python differential oracle)
 ```
