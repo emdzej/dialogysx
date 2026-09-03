@@ -111,6 +111,19 @@ export class DataCursor {
     return v;
   }
 
+  /**
+   * Java `DataInput.readShort` — **signed**.
+   *
+   * This distinction is load-bearing: the plate format uses `-1` in a
+   * `readShort` field to mean "no condition" / "no replacement list". Reading
+   * those unsigned gives 65535 and an out-of-bounds pool lookup.
+   */
+  i16(): number {
+    const v = this.view.getInt16(this.offset);
+    this.offset += 2;
+    return v;
+  }
+
   i32(): number {
     const v = this.view.getInt32(this.offset);
     this.offset += 4;

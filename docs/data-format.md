@@ -177,22 +177,169 @@ key), TM catalogues (4 / 20 / 7).
 ### 3.1 `Planches.dat` — a plate
 
 Key is `PR(4) || plateName(7)`, e.g. `0202N100110`. The payload is a Java
-`DataOutput` stream: a **condition tree** over vehicle criteria, then the parts.
+`DataOutput` stream, transcribed below from
+`dialogys.pr.PRFactory.newCondPlanche` and `dialogys.conditions.CondFactory`.
+
+**Conditions are pooled once per record and referenced by index.** That is the
+thing to know: a record opens with several small counts that look like flags but
+are pool sizes, and a _negative_ index means "no condition"
+(`PRFactory.getCondBloc` returns null for `< 0`). Every `readShort` here is
+**signed** — read them unsigned and `-1` becomes 65535.
 
 ```
-... uint16 counts ...
-  uint16 len || "MOT3"          writeUTF - a criterion code
-  uint16                        operator (0x3D '=', 0x3C '<', 0x5D ']' ...)
-  uint16 count, uint16 value    operand(s): indices into the criterion value list
-...
-  uint16 repere                 the callout number on the drawing
-  8 x 0xFF                      applicability mask
-  uint16 len || "6001548001"    writeUTF - the part reference
+plate record:
+  locals        = nbVar:i16, nbVar × { name:utf, nbInd:i16, nbInd × ind:i16 }
+  localsInfo    = same again; these names take an "info" suffix
+  condPool      = nbBloc:i16, nbBloc × CondBloc
+  consPool      = nbCons:i16, nbCons × { nbLign:i16, nbLign × {
+                      condIdx:i16, nbRefQte:i16, nbRefQte × { ref:utf, qte:i16 } } }
+  replPool      = nbList:i16, nbList × { nbRef:i16, nbRef × ref:utf }
+  nbRepere:i16
+  nbRepere × {                          -- one entry per callout, 1-based
+    nbCandidate:i16
+    nbCandidate × {
+      condBlocRV:i16      -- applicability: does this part fit?
+      condBlocSC:i16      -- "signe codé": ask the user to choose
+      refRplIdx:i16       -- supersessions, index into replPool
+      consAEP:i16
+      consPPS:i16
+      refPiece:utf        -- the part number
+    }
+  }
+
+CondBloc = nbLign:i16, nbLign × CondLign        -- OR   (extends Ou)
+CondLign = nbElem:i16, nbElem × CondElem        -- AND  (extends Et)
+CondElem = variable:utf, operator:char, nbVal:i16, nbVal × valueIndex:i16
 ```
 
-Criterion codes (`MOT3`, `MOTI`, `AIRC`, `TYP_`, `MILL`, `XCAR`, ...) are the
-same vocabulary as `pr/<group>.zip:ListeNomVarId`, labelled in
-`langue/<lg>/classicvar.utf`.
+#### Operators
+
+`operator` is a Java `char` — unsigned 16-bit — from
+`dialogys.util.Constantes.CODE_OPER_*`. Counted over all 41,758 plates:
+
+| Code              | Meaning                       | Occurrences |
+| ----------------- | ----------------------------- | ----------- |
+| `=` (0x3D)        | equal                         | 1,381,623   |
+| `]` (0x5D)        | greater or equal              | 155,282     |
+| `<` (0x3C)        | less                          | 146,130     |
+| `[` (0x5B)        | less or equal                 | 14,697      |
+| **U+2260** (8800) | **not equal**                 | 13,731      |
+| `§` (167)         | informational, _not_ a filter | 8,240       |
+| `>` (0x3E)        | greater                       | 2           |
+
+**`CODE_OPER_DIFFERENT` is 8800, not a byte** — it is `≠` U+2260 as a Java
+`char`. Read the operator as one byte and every "not equal" clause becomes
+unrecognised, which `CondElem`'s `default:` turns into _unknown_ rather than an
+error.
+
+#### Evaluation
+
+Three-valued Kleene logic (`dialogys.conditionsfp.Troolean`): a bloc is an OR of
+lines, a line an AND of clauses. An empty line is **true**
+(`CondLign.newCondLignVraie`); an empty bloc is **false**.
+
+`CondElem` compares the vehicle's value against
+`PR.getTValeur(language, variable)[valueIndex]`, and **handles only `=` and
+`≠`**; the ordered operators belong to date variables and otherwise fall through
+to unknown.
+
+> **Unknown is not "exclude".** `Condition.isTrue` raises `DontKnowException`,
+> which the interface turns into a question for the user. Mapping unknown to
+> false silently hides parts that do fit.
+
+Two conditions per candidate, and they are not interchangeable:
+
+- **`condBlocRV`** decides whether the part fits.
+- **`condBlocSC`** ("signe codé") does **not** filter. When several candidates
+  survive and any carries one, `CondPlanche.askSignCod` asks the user to choose
+  between them. Treating it as a filter drops legitimate variants.
+
+#### A worked example
+
+`1132N100110`, five callouts and eight pooled conditions, rendered by
+`dialogysx plates`:
+
+```
+  1  6000007551              (TYP_ = D500 AND EQPT ≠ 123)
+  2  6000007551              (TYP_ = D500 AND EQPT = 123)
+  3  6000007614 ->6000007770 (TYP_ = D501 AND EQPT ≠ 123 AND EQPT ≠ 121)
+  3  6000007770              (TYP_ = D501 AND EQPT ≠ 123 AND EQPT ≠ 121)
+  4  6000007673 ->6000007771 (TYP_ = D501 AND EQPT = 121|123) OR (TYP_ = D502)
+  4  6000007771              (TYP_ = D501 AND EQPT = 121|123) OR (TYP_ = D502)
+  5  6000008647 ->6000008997 (UVEH = K AND TYP_ = D503
+                              AND NFAB ≥ 0000001 AND NFAB ≤ 0000723)
+  5  6000008997              (TYP_ = D503)
+```
+
+Everything in the grammar shows up here: conjunction within a line, disjunction
+between lines (callout 4), several alternatives for one clause (`121|123`),
+`≠` decoding correctly as U+2260, and supersessions (`->`).
+
+Callout 5 is the shape §3.1.1 is about: part `6000008647` applies to factory `K`
+up to build number 723 and is superseded by `6000008997`, which applies to the
+type generally. Without date and build-number comparison that first line cannot
+be decided — so the honest answer for that part today is _unknown_, not "fits"
+and not "does not fit".
+
+Note also `UVEH` (the factory): `CondFactory` routes it to the plain `CondElem`
+even though it is in `S_VUES_DATE`, so it compares by equality like any other
+criterion.
+
+#### Measured over the whole catalogue
+
+41,758 plates parse with every byte consumed, yielding 423,076 callouts and
+762,244 part candidates:
+
+|                                                           | Candidates  | Share      |
+| --------------------------------------------------------- | ----------- | ---------- |
+| No condition — always fit                                 | 285,961     | 37.5 %     |
+| Decidable from criteria alone                             | 257,219     | 33.7 %     |
+| Contain an ordered clause — need date resolution (§3.1.1) | 219,064     | 28.7 %     |
+| **Decidable without date support**                        | **543,180** | **71.3 %** |
+
+Also: 131,306 candidates carry a `condBlocSC` (a user choice), 133,567 carry
+supersessions, and 553 distinct criteria appear across all conditions.
+
+**Nine plates carry a dangling pool reference** — an index one past the end of
+its pool. All nine are in `consPool`, never in a candidate's applicability, and
+the records are otherwise intact (they parse to the byte, with coherent parts).
+The original is less forgiving: `getCondBloc` indexes the array directly, so
+Java throws `ArrayIndexOutOfBoundsException` and **Dialogys itself cannot load
+these nine plates**:
+
+```
+1230N114750  1236N114655  1240N114320  1240N156322  1242N114320
+1242N156322  1270N156369  1274N156369  1703N199300
+```
+
+#### 3.1.1 Date and build-number comparison — not implemented
+
+The ordered operators are used by exactly **eight** variables, all of them views
+onto a build date or a build number
+(`VarFactory.S_VUES_DATE = "NFAB|MILL|UVEH|MFAB|NFMO|D_MO|UFMO|NFBV|D_BV|UFBV"`):
+
+| Variable | Meaning                | Occurrences |
+| -------- | ---------------------- | ----------- |
+| `MILL`   | model year (millésime) | 257,930     |
+| `D_MO`   | engine date            | 20,889      |
+| `NFAB`   | build number           | 19,733      |
+| `NFMO`   | engine build number    | 5,849       |
+| `D_BV`   | gearbox date           | 5,130       |
+| `MFAB`   | build month            | 5,031       |
+| `NFBV`   | gearbox build number   | 1,542       |
+| `NFPO`   | —                      | 7           |
+
+Only **29 clauses** use an ordered operator on a variable outside that set, so
+the set is effectively complete.
+
+Resolving them is a subsystem of its own, `VarDate.resolveDate`, with three
+"vues" — 0 build number, 1 event/date, 2 factory — and helpers
+`UtilDate.compareNFab`, `succDateEvt`, `getNFabWithoutUsi`,
+`getUsiWithoutNFab`, `resolveDatesSpeciales`, `resolveDateEvt`,
+`resolveDateApprox`, plus `getBlocDate(vue).getNFabFromEvt(...)` which reads the
+**`Dates` dataset** (§3). It needs the vehicle's build number and factory, not
+just its criteria. Until it exists, those 28.7 % of candidates evaluate to
+unknown — which the interface should present as a question, not as an exclusion.
 
 ### 3.2 `Organes.dat` — an assembly
 
@@ -449,22 +596,35 @@ Established by deliberately breaking them:
   reads as "not on this disc".
 - **Unsigned key comparison** passes everything, for the reason given in §2.1.
 
-## 7. What is not yet decoded
+## 7. What is decoded, and what is not
 
-Honest list.
+**Specified and validated** — the plate condition grammar (§3.1). Transcribed
+from `PRFactory.newCondPlanche` and `CondFactory`, and every one of the 41,758
+plates parses with all bytes consumed. My earlier note here claimed the leading
+shorts were "counts" and that there was an "`0xFF` applicability mask": both
+were wrong, read off a hexdump. The shorts are pool sizes and the "mask" was a
+run of `-1` sentinels meaning "no condition". The lesson stands on its own: the
+application is unobfuscated, so read the parser instead of the bytes.
 
-- **`Planches.dat` / `Organes.dat` condition trees** are read but not
-  _specified_. The criterion/operator/operand encoding is understood by example;
-  the grammar (nesting, the `0xFF` applicability mask, the leading `uint16`
-  counts) needs `dialogys.pr.CondPlanche` / `CondRefPi` / `TCondAcces` read
-  against a case whose answer is known independently. **This is the critical
-  path for correct parts filtering** — a wrong evaluation shows a part that does
-  not fit the vehicle.
+Honest list of what remains.
+
+- **Date and build-number comparison** (§3.1.1). The ordered operators are
+  parsed but not evaluated, which leaves **28.7 % of part candidates** resolving
+  to unknown. This is now the critical path for parts filtering, and it needs
+  `VarDate.resolveDate`, the `UtilDate` helpers, and the `Dates` dataset.
+- **`Dates` semantics**: the record is a key plus a list of `yymmdd`, but what
+  the dates _mean_ is unverified — and §3.1.1 depends on it.
+- **`Organes.dat` conditions** are almost certainly the same grammar
+  (`CompileCond` treats plates and assemblies identically, and `newCondOrgVign`
+  reuses `newTCondBloc`), but that has not been swept and asserted the way §3.1
+  was. Do not assume it until it is.
 - **`prremp`** (part substitutions): payload is `len:int32 || key || binary`; the
   binary tail is unread.
 - **`Refcontexte/refContexte`** (11 MB) — untouched.
-- **`Dates` semantics**: the record is a key plus a list of `yymmdd`, but what
-  the dates _mean_ (production milestones? applicability windows?) is unverified.
 - **`chemins.properties`**, the authoritative data-path map, is inside the 250 MB
   MSI and has not been extracted.
 - **`papv` block grammar** is understood by shape, not specified.
+- **Nothing has been checked against a known-good parts list.** The grammar is
+  right — 41,758 records prove the _shape_ — but "this part fits this car" has
+  not been confirmed against an independent answer for a single vehicle. That is
+  a different claim, and it is not yet made.

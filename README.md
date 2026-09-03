@@ -24,7 +24,11 @@ Working today:
   or Node `fs`, behind one `read(pos, len)`.
 - `@dialogysx/catalogue` — vehicle envelope, part-number search, drawing
   callouts, the criteria vocabulary.
-- `dialogysx` CLI — `import`, `verify`, `datasets`, `keys`, `get`, `criteria`.
+- `@dialogysx/catalogue` — the **applicability condition grammar**: all 41,758
+  plates parse with every byte consumed, 423,076 callouts, 762,244 part
+  candidates, three-valued evaluation.
+- `dialogysx` CLI — `import`, `verify`, `plates`, `datasets`, `keys`, `get`,
+  `criteria`.
 - A browser harness that opens a tree and queries it. 21 kB gzipped.
 
 Measured over localhost: a 7.2 MB index preloads in 119 ms, a part-number
@@ -35,10 +39,17 @@ The `import` CLI merges the six discs into one folder, with per-component and
 per-language selection — the full set is 15.8 GB, the parts catalogue in one
 language is 0.08 GB.
 
-**Not working yet:** the plate condition grammar, which decides _which parts fit
-which vehicle_. It is read but not specified, so there is no parts-by-vehicle
-view and won't be until it is verified against known-good answers. See
-[`docs/plan.md`](docs/plan.md) Phase 3 and [`docs/data-format.md`](docs/data-format.md) §7.
+**Partly working:** parts-by-vehicle filtering. The condition grammar is done and
+swept over the whole catalogue, and **71.3 % of part candidates are decidable
+today**. The other 28.7 % contain a date or build-number comparison
+(`MILL`, `NFAB`, ...) which needs `VarDate.resolveDate` and the `Dates`
+dataset — until then they evaluate to _unknown_, which the interface should
+present as a question rather than an exclusion.
+
+**Not yet claimed:** that any parts list is _correct_. 41,758 records prove the
+grammar's shape; they do not prove "this part fits this car". That needs one
+vehicle whose right answer is known independently. See
+[`docs/data-format.md`](docs/data-format.md) §3.1 and §7.
 
 ## Why it can be client-side only
 
@@ -121,6 +132,10 @@ node $cli get ref-num-pr 6001548001 --exact -d "$DATA"
 node $cli get envelope-pr-type 1104 -d "$DATA"
 node $cli get trepere 1132C000 -d "$DATA"
 node $cli criteria AIRC -d "$DATA"
+
+# Applicability: one plate, or sweep the catalogue as a grammar check
+node $cli plates 0202N100110 -d "$DATA"
+node $cli plates -d "$DATA"
 ```
 
 The browser harness needs the tree served over HTTP with `Range` support (it

@@ -97,6 +97,36 @@ reads as deliberate.
 The manifest exists because **HTTP cannot list a directory**: `HttpTreeSource`
 has to be told which languages a tree carries.
 
+## Applicability conditions
+
+This is the part that decides which parts fit which vehicle, so it gets the
+strictest treatment in the repo.
+
+- **Read the parser, not the bytes.** The application is unobfuscated.
+  `PRFactory.newCondPlanche` and `CondFactory` _are_ the specification. An
+  earlier version of the format doc described the leading shorts as "counts" and
+  invented an "`0xFF` applicability mask" from a hexdump; both were wrong. The
+  shorts are pool sizes and the "mask" was a run of `-1` sentinels.
+- **`readShort` is signed.** `-1` means "no condition". Unsigned gives 65535 and
+  a pool lookup off the end.
+- **The not-equal operator is 8800 (U+2260), not a byte.** Read it as one byte
+  and every `≠` clause becomes unrecognised — and `CondElem`'s `default:` maps
+  that to _unknown_, so it fails quietly rather than loudly.
+- **`unknown` means "ask the user", not "exclude".** The original raises
+  `DontKnowException` and prompts. Mapping it to false hides parts that do fit.
+- **`condBlocSC` is not a filter.** It triggers `askSignCod`, a choice between
+  surviving variants. Filtering on it drops legitimate parts.
+- **`parsePlate` asserts the record is fully consumed.** Keep that. It is what
+  turns a grammar mistake into a loud failure instead of a plausible parts list
+  assembled from misaligned bytes.
+
+`dialogysx plates` with no key sweeps all 41,758 plates. Run it after any change
+here: it must report 0 failures and 9 data faults, no more and no fewer.
+
+**What is not established:** that any parts list is _correct_. The sweep proves
+the shape. Nobody has yet compared output against a vehicle whose right answer
+is known independently, so do not describe filtering as verified.
+
 ## Things that are the way they are on purpose
 
 - **Encoding is per file.** The `.utf` suffix means UTF-8; everything else is

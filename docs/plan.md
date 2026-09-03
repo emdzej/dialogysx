@@ -199,12 +199,29 @@ Ship `cli verify` in the same phase — it _is_ the test.
 `cli show <pr> <plate>` so the whole chain is exercised from a terminal before
 any pixels exist.
 
-**Phase 3 — condition evaluation.** The critical path and the largest open
-risk (§7). Specify the `Planches` / `Organes` condition grammar from
-`dialogys.pr.CondPlanche`, `CondRefPi`, `TCondAcces`, then test it against
-vehicles whose correct parts list is known independently. **A wrong evaluation
-here shows a part that does not fit the car** — this phase does not get
-signed off on plausibility.
+**Phase 3 — condition evaluation.** Grammar **done**; evaluation partly done.
+
+The grammar is transcribed from `PRFactory.newCondPlanche` and `CondFactory`,
+and all **41,758 plates parse with every byte consumed** — 423,076 callouts and
+762,244 part candidates. Kleene three-valued logic, OR of lines over AND of
+clauses, with `unknown` meaning "ask the user" rather than "exclude".
+
+What is left is **Phase 3b: date and build-number comparison.** The ordered
+operators (`< > [ ]`) belong to eight date/build-number variables, `MILL` above
+all, and resolving them means porting `VarDate.resolveDate` — three "vues",
+the `UtilDate` helpers, and the `Dates` dataset. Measured:
+
+| Part candidates               | Share      |
+| ----------------------------- | ---------- |
+| No condition — always fit     | 37.5 %     |
+| Decidable from criteria alone | 33.7 %     |
+| Need date resolution          | **28.7 %** |
+| **Decidable today**           | **71.3 %** |
+
+**And the phase is still not signed off**, because a parts list has never been
+checked against an independently known answer. The 41,758 records prove the
+_shape_ is right; they do not prove "this part fits this car". That needs one
+vehicle whose correct parts list is known from outside this data.
 
 **Phase 4 — the web client.** Plate view: PNG plus `TRepere` hotspots, parts
 table filtered by criteria. Then the navigation above it — PR group, assembly,
@@ -227,9 +244,20 @@ things (§5 of the format doc):
   filename lookup), and swap the comma decimal separator before parsing any
   callout coordinate.
 
-**Phase 6 — local-disc mode.** File System Access API against a mounted disc or
-an unpacked tree, through the same `Reader`. Cheap once Phase 1 is right, which
-is the point of doing Phase 1 that way.
+**Phase 6 — local and offline data.** Three sources, all behind the same
+`Reader`, which is why Phase 1 was shaped that way:
+
+- **A picked directory** (File System Access API) against a mounted disc or an
+  imported tree. Implemented.
+- **A static tree over HTTP `Range`.** Implemented.
+- **OPFS — import once, then work offline.** Planned, not built. The origin
+  private filesystem is the natural home for an imported tree: reads come from
+  `getFile()` plus `Blob.slice()`, which is the same `read(pos, len)` the engine
+  already has, so it is another backend rather than a new design. It suits a
+  tiered split — the ~90 MB of structured catalogue data into OPFS for genuine
+  offline use, with the multi-GB drawings and PDFs still fetched over HTTP on
+  demand. Worth checking real quota behaviour and per-browser support before
+  promising it in the interface.
 
 ## 5. Ranked risks
 
