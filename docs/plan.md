@@ -38,19 +38,30 @@ Measured, per language, for the parts catalogue:
 | Drawings, 39,584 PNGs                                | 720 MB     | Served individually, one per plate view            |
 | Criteria / language / misc                           | ~50 MB     | Small files, loaded on demand                      |
 
-Repair documentation is a separate ~4 GB per language, but it arrives **already
-split into 22,967 XML documents** across 1,776 chapter directories, 1–5 MB each.
-One document is one fetch. No import, no repacking. Its illustrations add
-another 664 MB, shipped as a zip on a later disc of the same language set.
+Repair documentation is a separate ~11 GB per language, and it is **two parallel
+systems** (§5 of the format doc):
 
-Note what that documentation _is_: **98.5 % of those bytes are XML**, and only
-454 files (60 MB) are PDFs — the technical notes. So the repair half needs a
-real XML renderer; a PDF viewer covers the notes and nothing else.
+|                        | Files  | Bytes   | What it needs                 |
+| ---------------------- | ------ | ------- | ----------------------------- |
+| D3K/SPI XML procedures | 23,331 | 4.28 GB | a renderer                    |
+| PDF manuals and notes  | 2,584  | 1.36 GB | a PDF viewer and an XML index |
+| Illustrations (zipped) | 9      | 5.27 GB | unzipping once, at import     |
+
+Both arrive already split per document, so one procedure is one fetch — no
+repacking. The illustrations are the only part that must be unpacked, because a
+client cannot range-read into a zip's deflate stream.
+
+> An earlier version of this plan said "98.5 % XML, 454 PDFs, so a PDF viewer
+> covers the notes and nothing else." That was a census of **one disc**. The
+> Russian set spans three, and DVD-5 adds 2,130 more PDFs — the classic workshop
+> manuals — plus `ArboRech-MR-pdf-*.xml`, a per-family navigation tree that makes
+> them browsable and applicability-filtered. The PDF half is a real deliverable,
+> and the cheaper one, which is why Phase 5 now does it first.
 
 **Verdict: yes, purely client-side, no backend.** The largest thing the browser
 must hold is ~17 MB of indexes. Everything else is fetched by the byte range or
-by the file. The 720 MB of PNGs and 3.8 GB of XML live on the static host and are
-never downloaded wholesale.
+by the file. The 720 MB of parts drawings and the ~11 GB of repair documentation
+live on the static host and are never downloaded wholesale.
 
 The one thing the browser cannot do is decode a VIN, and neither could the
 original — see §5A of the format doc. VIN lookup was **BVM, a remote TCP service
@@ -115,12 +126,64 @@ interface, plus the three backends. Two rules it must not get wrong:
 
 Not a database conversion. Three jobs:
 
-1. **Unpack** the ISOs into a static tree, honouring the zero-CRC zips (§3.8).
+1. **Import** — merge the six discs into one data folder. Built; see below.
 2. **Derive** the indexes the original never had, because the original had a
    local disk and we have a network: a part-number prefix index, a label search
    index, and a compact manifest so the app knows what exists without probing.
+   Only the manifest exists so far.
 3. **Verify** — re-run the §6 validation over a tree and fail loudly. This is
    the regression test for the format code.
+
+### `dialogysx import` — why it is not `cp -r`
+
+The set does not merge by union, and three separate traps make a naive copy lose
+data silently.
+
+- **Two discs, one path, different content.** For the Russian set, DVD-4 and
+  DVD-5 both carry `mrnt/ru/d3k/images/images_1.zip` — 945 MB and 696 MB. A
+  plain copy keeps whichever ran last and loses ~12,000 illustrations with no
+  error. They share **0 of 36,374 entry names**, so the importer _extracts_ them
+  instead, merging contents rather than filenames, and reports any entry that
+  genuinely overlaps.
+- **The same drawings ship twice.** `dessins/100.zip` (39,584 PNGs) and
+  `dessins/100/` (the same files unpacked into `NNNN/` buckets) are byte-size
+  identical for all 39,584 entries. Importing both wastes 694 MB, so the
+  archive is a separate, off-by-default component. The bucket rule is
+  `dessins/100/<name[0..4]>/<name>` — the first four characters of the filename,
+  which holds for all 39,584 (the three exceptions are `Thumbs.db` and one
+  zero-length `.png`).
+- **Version stamps disagree.** Every disc has `update/VersionData` and they
+  differ: catalogue `versmpf=4.5.6`, repair discs `versmpf=4.56.20160921`,
+  application disc `versmpfappli =V7.5.6`. Merging them into one path means
+  picking a winner, so they are recorded in the manifest and not copied.
+
+Path collisions that are _byte-identical_ are deduplicated silently. Anything
+else aborts the import rather than guessing.
+
+**Selection matters, because the full set is 15.8 GB.** Discs are classified by
+marker paths (the set is not self-describing), and both `--components` and
+`--languages` narrow what lands:
+
+| Component                              | Files  | Size     | Default                     |
+| -------------------------------------- | ------ | -------- | --------------------------- |
+| `parts`                                | 279    | 0.08 GB  | always — the catalogue      |
+| `criteria` (`langue/`, all 21)         | 125    | 0.04 GB  | on                          |
+| `drawings`                             | 39,583 | 0.71 GB  | on                          |
+| `drawings-archive`                     | 1      | 0.69 GB  | off — duplicates `drawings` |
+| `exploded`, `dates`, `substitutions`   | 14     | 0.05 GB  | on                          |
+| `repair-pdf`                           | 2,494  | 1.63 GB  | on                          |
+| `repair-xml`                           | 38,752 | 13.29 GB | on                          |
+| `extras` (incl. REACH)                 | 47     | 0.04 GB  | off — nothing decoded       |
+| `labour-times` (`TM.zip`, 99,056 XMLs) | 1      | 0.07 GB  | off — quoting input         |
+| `pricing` (`tarif.zip`)                | 1      | 0.21 GB  | off — out of scope          |
+| `app` (jars, `repair.xsl`, help)       | 190    | 0.17 GB  | off — RE reference          |
+
+Measured, not declared: the planner walks the discs and prints this table, so it
+cannot go stale. **Every file on all six discs maps to a named component** —
+`--dry-run` reports anything unclaimed, and that list is currently empty, which
+is how `TM.zip`, `tarif.zip` and `REACH.zip` were found in the first place.
+
+One repair language plus the catalogue is ~12.7 GB; `-c min -l fr` is 0.08 GB.
 
 ## 4. Order of work
 
@@ -150,15 +213,19 @@ plate — and part-number search.
 **Phase 5 — repair documentation.** Two deliverables, because the source is two
 things (§5 of the format doc):
 
-- **MR, the procedures — 22,967 XML documents, 98.5 % of the bytes.** Parse
+- **NT and MR PDFs — 2,584 documents, 1.36 GB. Do these first.** They need no
+  format work: render inline with `pdf.js` and offer "open in your PDF app" or
+  download alongside it, since a native viewer beats an embedded one for
+  printing and for sitting open next to a car. Navigation comes from
+  `indexation/ArboRech-MR-pdf-<family>.xml`, whose `<element>` / `<pdf>` /
+  `<appl>` shape is trivial and already carries applicability. Same treatment
+  for the standalone `Outillage.pdf` and `PR0401.pdf`.
+- **The D3K/SPI XML procedures — 22,967 documents.** Parse
   SPI/D3K to a render model with `fast-xml-parser`, using `repair.xsl` as the
   authority on presentation. Resolve `GRAPHICAL-LAYER` image references against
-  the images zip, and swap the comma decimal separator before parsing any
+  the extracted images tree (`import` unpacks the archives, so this is a plain
+  filename lookup), and swap the comma decimal separator before parsing any
   callout coordinate.
-- **NT, the technical notes — 454 PDFs.** Render inline with `pdf.js`, and offer
-  "open in your PDF app" / download alongside it, since a native viewer beats an
-  embedded one for printing and for sitting open next to a car. Same treatment
-  for the standalone `Outillage.pdf` and `PR0401.pdf`.
 
 **Phase 6 — local-disc mode.** File System Access API against a mounted disc or
 an unpacked tree, through the same `Reader`. Cheap once Phase 1 is right, which

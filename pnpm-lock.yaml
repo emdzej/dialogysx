@@ -46,10 +46,16 @@ importers:
       fflate:
         specifier: ^0.8.3
         version: 0.8.3
+      yauzl:
+        specifier: ^3.4.0
+        version: 3.4.0
     devDependencies:
       "@types/node":
         specifier: ^22.13.1
         version: 22.20.1
+      "@types/yauzl":
+        specifier: ^3.4.0
+        version: 3.4.0
 
   apps/web:
     dependencies:
@@ -905,6 +911,12 @@ packages:
         integrity: sha512-EANqOCF9QFyra+4pfxUcX9STKJpCLjMbObVzljIJomAWSnuSIEAvyzEU53GaajbXJEgdh0iEcPL+DGvpUd4k1Q==,
       }
 
+  "@types/yauzl@3.4.0":
+    resolution:
+      {
+        integrity: sha512-NRPn5w6h8dhcnmx3YIRQcqMywY/+nND/uOkJessedcrowO3C0AssHp3tMJpxKAwOhFOo0OV1y9VtsC5hbKKBAw==,
+      }
+
   "@vitest/expect@2.1.9":
     resolution:
       {
@@ -1208,6 +1220,12 @@ packages:
       }
     engines: { node: ">= 14.16" }
 
+  pend@1.2.0:
+    resolution:
+      {
+        integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==,
+      }
+
   picocolors@1.1.1:
     resolution:
       {
@@ -1493,6 +1511,13 @@ packages:
       }
     engines: { node: ">=8" }
     hasBin: true
+
+  yauzl@3.4.0:
+    resolution:
+      {
+        integrity: sha512-jIH9yLR9wqr0wOS0TpBvo/g/2UgZH5qePVbjgRliiF0BYvOZyaBknKsF+x9Iht0O6sqgnB93rCICdOZFecJuDw==,
+      }
+    engines: { node: ">=12" }
 
   zimmerframe@1.1.5:
     resolution:
@@ -1803,6 +1828,10 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
+  "@types/yauzl@3.4.0":
+    dependencies:
+      "@types/node": 22.20.1
+
   "@vitest/expect@2.1.9":
     dependencies:
       "@vitest/spy": 2.1.9
@@ -1984,6 +2013,8 @@ snapshots:
   pathe@1.1.2: {}
 
   pathval@2.0.1: {}
+
+  pend@1.2.0: {}
 
   picocolors@1.1.1: {}
 
@@ -2186,5 +2217,9 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  yauzl@3.4.0:
+    dependencies:
+      pend: 1.2.0
 
   zimmerframe@1.1.5: {}

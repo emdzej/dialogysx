@@ -68,6 +68,34 @@ signed-comparison test. Two traps found while doing it:
 - **Encoding bugs pass tests.** `classicvar.utf` read as cp1252 yields
   `"Air conditionnÃ© normal"` — a string that parses and renders. Assert on
   content, not on absence of an exception.
+- **A flag that silently drops work.** `-c min,labour-times` used to
+  short-circuit on `min` and discard `labour-times`, then report a successful
+  import that skipped 99,056 files. Check the _output_, not the exit code.
+- **Do not run two long imports at once.** Two background runs against one
+  output directory raced, and the second `rm -rf` deleted files the first was
+  still writing — which then looked like an extraction bug.
+
+## Importing discs
+
+`dialogysx import` merges the six discs. It is not `cp -r`, and the reasons are
+all cases where a copy loses data **without an error**:
+
+- Two discs write `mrnt/ru/d3k/images/images_1.zip` with different content, so
+  image archives are extracted, not copied. Their entries do not overlap
+  (0 of 36,374), and the importer reports it if that ever changes.
+- The parts drawings ship twice — `dessins/100.zip` and `dessins/100/` — so the
+  archive is an off-by-default component. Do not "fix" the 694 MB gap.
+- `update/VersionData` differs per disc, so it goes in the manifest rather than
+  the tree.
+
+**Every file on all six discs must map to a named component.** `--dry-run`
+prints anything unclaimed, and that list is how `TM.zip` (99,056 labour-time
+XMLs), `tarif.zip` and `REACH.zip` were found. If you add a disc and something
+is unclaimed, name it — including things that are out of scope, so the omission
+reads as deliberate.
+
+The manifest exists because **HTTP cannot list a directory**: `HttpTreeSource`
+has to be told which languages a tree carries.
 
 ## Things that are the way they are on purpose
 
@@ -129,6 +157,10 @@ Honest list, so nobody reports these as discoveries:
 - **No lint.** No eslint or prettier check runs in CI, because there is no CI.
   `pnpm format` exists and is manual.
 - **No browser tests.** The e2e shape ddtx uses is not set up here.
+- **Only macOS can mount ISOs.** `import` shells out to `hdiutil`. Elsewhere it
+  asks for mount points, which it accepts on any platform.
+- **`import` has no unit test for its copy/extract loop.** The component routing
+  and selection logic is tested; the file walk is only covered by running it.
 
 ## Commit messages
 

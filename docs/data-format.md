@@ -264,9 +264,21 @@ this file is required to _evaluate_ applicability, not merely to label it.
 for that group), `ListeVarVal` (their values), `ListeItemsAbsentsMenu`, and
 sometimes `ListeDoc`.
 
-> **Zip quirk.** Every CRC-32 field in these archives is zero. `unzip` reports
-> `bad CRC ... (should be 00000000)` and exits non-zero while extracting correct
-> data. An importer must ignore CRC mismatches on these files.
+> **Zip quirk, precisely.** The **local file headers carry CRC-32 = 0** while the
+> **central directory carries the correct CRCs**, and the data-descriptor flag
+> (general-purpose bit 3) is _not_ set — so nothing tells a reader to look
+> elsewhere:
+>
+> |                   | `ListeVarVal`                                   |
+> | ----------------- | ----------------------------------------------- |
+> | Local header      | `crc=0x00000000`, `csize=29973`, `flags=0x0800` |
+> | Central directory | `crc=0xc779ee22`, `csize=29973`                 |
+>
+> This is why `unzip` reports `bad CRC ... (should be 00000000)` and exits
+> non-zero while writing correct data: it validates against the local header.
+> **Read the central directory instead** — `yauzl` and `fflate` both do, and both
+> validate these archives cleanly with no CRC suppression needed. Do not disable
+> CRC checking to work around it; use a reader that looks in the right place.
 
 ## 4. Drawings and images
 
@@ -287,27 +299,57 @@ conversion for the web.**
 `DVD-2..5` carry `data/mrnt/<lang>/d3k/`. One language set spans several discs:
 Russian is DVD-2 (chapters) plus DVD-4 and DVD-5 (images).
 
-**The repair instructions are XML, not PDF.** Counted over the Russian
-`d3k` tree:
+**There are two parallel documentation systems, one XML and one PDF.** Counted
+over the complete Russian set (DVD-2 + DVD-4 + DVD-5):
 
-|        | Files  | Bytes   | Share of bytes |
-| ------ | ------ | ------- | -------------- |
-| `.xml` | 22,967 | 3.95 GB | **98.5 %**     |
-| `.pdf` | 454    | 0.06 GB | 1.5 %          |
+|                                            | Files     | Bytes       |
+| ------------------------------------------ | --------- | ----------- |
+| `.xml` — structured procedures and indexes | 23,331    | 4.28 GB     |
+| `.pdf` — manuals and technical notes       | **2,584** | **1.36 GB** |
+| `.zip` — illustrations                     | 9         | 5.27 GB     |
 
-- `chapitres/<CHAPTER>/REPAIR-<wa>-<wf>-<n>-extr-utf8.xml` — 22,967 documents
-  across 1,776 chapter directories. Self-describing UTF-8 XML in Renault's
-  SPI/D3K schema: `WA` (work area), `WF` (work function), `DU` (documentary
-  unit), `APPL` (applicability, as `FAMILY-REF` / `APPL-OBJECT-REF` /
-  `APPL-CRITERION-REF`), `STEP`, `TEXT-ITEM`, `GRAPHICAL-LAYER`,
-  `GRAPHICAL-MARK-OCCURENCE`.
-- `chapitres/NTI-<lang>/*.pdf` — 454 technical notes (NT), and these _are_
-  PDFs. So are a handful of standalone documents: `PRPer/PR0401.pdf`,
-  `langue/<lg>/outillage/Outillage.pdf`, and DVD-0's help documents.
+> **Measure the whole set, not one disc.** Counting DVD-2 alone gives 22,967 XML
+> against 454 PDF, and the tempting conclusion "the instructions are XML, not
+> PDF". DVD-5 then adds 2,130 more PDFs — the classic workshop manuals — making
+> the PDF corpus five times larger than that count implied, and a real
+> deliverable rather than a rounding error. A language set spans several discs;
+> a census of one of them is not a census.
 
-So the split is: **MR (repair methods) = XML to render; NT (technical notes) =
-PDF to display.** A PDF viewer covers 454 documents; it does not cover the
-22,967 that carry the actual procedures.
+**System 1 — D3K/SPI XML** (`chapitres/`), 22,967 documents across 1,776 chapter
+directories. Self-describing UTF-8 XML: `WA` (work area), `WF` (work function),
+`DU` (documentary unit), `APPL` (applicability, as `FAMILY-REF` /
+`APPL-OBJECT-REF` / `APPL-CRITERION-REF`), `STEP`, `TEXT-ITEM`,
+`GRAPHICAL-LAYER`, `GRAPHICAL-MARK-OCCURENCE`. Needs a renderer; `repair.xsl`
+from DVD-0 is the vendor's own.
+
+**System 2 — PDF manuals**, which need no reverse-engineering at all:
+
+- `1-MR/` — 1,152 workshop manuals, e.g. `MR-000-AIRBAG CEINTURES-1.pdf`.
+- `1-NT/` — 978 technical notes, plus 454 more under `chapitres/NTI-<lang>/`.
+- `indexation/ArboRech-MR-pdf-<family>.xml` — **the navigation tree for the
+  PDFs**, one file per vehicle family (`X06`, `X09`, `X13`, ...). Trivial
+  schema, and it carries applicability:
+
+  ```xml
+  <arborech>
+    <element id="10" lib="front brake pads">
+      <pdf numero="MR-305-TWINGO-3" titre="M.R. 305   3 CHASSIS">
+        <appl><object>$TYC<criterion>C06</criterion></object></appl>
+      </pdf>
+    </element>
+  </arborech>
+  ```
+
+  868 topics and 1,159 PDF references in the `X06` file alone. Note `$TYC`: the
+  same applicability object the D3K XML uses, so both systems share one criteria
+  vocabulary.
+
+So the PDF half is a complete, navigable, applicability-filtered corpus reachable
+with an XML index and a PDF viewer — much the cheaper of the two to ship, which
+is why the plan does it first.
+
+Standalone PDFs exist outside both systems too: `PRPer/PR0401.pdf`,
+`langue/<lg>/outillage/Outillage.pdf`, and DVD-0's help documents.
 
 ### 5.1 Images
 

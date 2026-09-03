@@ -23,6 +23,7 @@ import {
   parseReperes,
 } from "@dialogysx/catalogue";
 import { decodeText, encodeKey } from "@dialogysx/raf";
+import { importCommand } from "./import/command.js";
 import { NodeDirectorySource } from "./node-source.js";
 
 const DATA_OPTION = ["-d, --data <dir>", "path to a disc's dialogys/data directory"] as const;
@@ -31,6 +32,8 @@ const program = new Command()
   .name("dialogysx")
   .description("Inspect and validate Dialogys catalogue data")
   .version("0.1.0");
+
+program.addCommand(importCommand());
 
 program
   .command("datasets")

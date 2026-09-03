@@ -24,12 +24,16 @@ Working today:
   or Node `fs`, behind one `read(pos, len)`.
 - `@dialogysx/catalogue` — vehicle envelope, part-number search, drawing
   callouts, the criteria vocabulary.
-- `dialogysx` CLI — `verify`, `datasets`, `keys`, `get`, `criteria`.
+- `dialogysx` CLI — `import`, `verify`, `datasets`, `keys`, `get`, `criteria`.
 - A browser harness that opens a tree and queries it. 21 kB gzipped.
 
 Measured over localhost: a 7.2 MB index preloads in 119 ms, a part-number
 lookup costs 12 ms, and a depth-3 envelope query returning 18 records costs
 21 ms — with the 7.2 MB data file never downloaded.
+
+The `import` CLI merges the six discs into one folder, with per-component and
+per-language selection — the full set is 15.8 GB, the parts catalogue in one
+language is 0.08 GB.
 
 **Not working yet:** the plate condition grammar, which decides _which parts fit
 which vehicle_. It is read but not specified, so there is no parts-by-vehicle
@@ -45,8 +49,8 @@ serve the vendor's own files, and the browser reads bytes out of them.
 
 Per language: ~17 MB of index files (preloaded), ~86 MB of data files (never
 fully downloaded), 720 MB of drawings as plain PNGs served individually, and
-repair documentation that already arrives as 22,967 separate XML documents —
-one procedure is one fetch.
+repair documentation that already arrives as separate documents — 22,967
+structured XML procedures and 2,584 PDF manuals, so one procedure is one fetch.
 
 Full reasoning in [`docs/plan.md`](docs/plan.md).
 
@@ -67,20 +71,56 @@ pnpm install
 pnpm build
 ```
 
-Then point the CLI at a mounted disc's `dialogys/data` directory:
+### Import the discs into one folder
+
+The set is six ISOs, and one language's data is spread across several of them.
+`import` merges them, choosing between the pieces:
 
 ```sh
-# Validate every dataset on the disc — the regression test for the engine
-node apps/cli/dist/index.js verify -d /Volumes/dialogysDVD1/dialogys/data
+cli=apps/cli/dist/index.js
+
+# What you can choose to import, and what breaks without each piece
+node $cli import --list-components -o x x
+
+# See the plan, with sizes measured off your actual discs. Writes nothing.
+node $cli import *.iso -o data --dry-run
+
+# The lot: 15.8 GB, both repair languages
+node $cli import *.iso -o data
+
+# Just the parts catalogue in French: 0.08 GB
+node $cli import DVD-0*.iso DVD-1*.iso -o data -c min -l fr
+
+# Catalogue, drawings and the PDF repair manuals, Russian only
+node $cli import *.iso -o data -c parts,criteria,drawings,repair-pdf -l ru
+```
+
+It takes mount points as well as ISO files (`import /Volumes/... `), and only
+mounts ISOs itself on macOS. It resumes by default, writes a `manifest.json`
+describing what landed, and **refuses to run** rather than let one disc silently
+overwrite another — which the Russian image archives really do. See
+[`docs/plan.md`](docs/plan.md#dialogysx-import--why-it-is-not-cp--r) for the
+three traps that motivated it.
+
+### Read a tree
+
+Point the CLI at an imported folder, or straight at a mounted disc's
+`dialogys/data`:
+
+```sh
+DATA=data   # or /Volumes/dialogysDVD1/dialogys/data
+
+# Validate every dataset — the regression test for the engine
+node $cli verify -d "$DATA"
 
 # What datasets exist, and where their key lengths come from
-node apps/cli/dist/index.js datasets
+node $cli datasets
 
 # Look things up
-node apps/cli/dist/index.js get ref-num-pr 6001548001 --exact -d "$DATA"
-node apps/cli/dist/index.js get envelope-pr-type 1104 -d "$DATA"
-node apps/cli/dist/index.js get trepere 1132C000 -d "$DATA"
-node apps/cli/dist/index.js criteria AIRC -d "$DATA"
+node $cli get ref-num-pr 6001548001 --exact -d "$DATA"
+node $cli get envelope-pr-type 1104 -d "$DATA"
+node $cli get trepere 1132C000 -d "$DATA"
+node $cli criteria AIRC -d "$DATA"
 ```
 
 The browser harness needs the tree served over HTTP with `Range` support (it
