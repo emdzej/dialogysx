@@ -88,6 +88,21 @@
     <div class="chrome">
       <span class="src">{app.status.from}</span>
       <span class="counts">{app.groups.length} PR groups</span>
+      {#if app.languages.length > 1}
+        <label class="lang">
+          language
+          <select
+            value={app.language}
+            onchange={(e) => app.reopen((e.currentTarget as HTMLSelectElement).value)}
+          >
+            {#each app.languages as l (l)}
+              <option value={l}>{l}</option>
+            {/each}
+          </select>
+        </label>
+      {:else if app.languages.length === 1}
+        <span class="counts">language {app.language}</span>
+      {/if}
     </div>
 
     <div class="layout">
@@ -340,6 +355,19 @@
   }
   .src {
     font-family: ui-monospace, monospace;
+  }
+  .lang {
+    display: flex;
+    gap: 0.3rem;
+    align-items: center;
+  }
+  .lang select {
+    font: inherit;
+    font-size: 0.75rem;
+    background: var(--bg);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: 2px;
   }
   .layout {
     display: grid;

@@ -140,6 +140,26 @@ node $cli plates 0202N100110 -d "$DATA"
 node $cli plates -d "$DATA"
 ```
 
+### Quick start
+
+Mount the discs, import one language into `data/` (git-ignored), and run:
+
+```sh
+pnpm install && pnpm build
+
+# Catalogue only, English: 0.83 GB, ~4 min
+node apps/cli/dist/index.js import /Volumes/dialogysDVD1 -o data -l en
+
+pnpm dev                       # finds ./data on its own
+```
+
+Open the URL it prints and click **Open URL**. The language comes from the
+tree's `manifest.json`, so an English-only import shows English criteria.
+
+> **The repair documentation in this disc set is Russian and Swedish only.**
+> There is no English MR/NT data to import — `-l en` gives you a fully English
+> _parts catalogue_, which is what the browser currently shows anyway.
+
 ### Browse it
 
 The dev server serves a tree at `/data` with `Range` support:

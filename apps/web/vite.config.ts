@@ -1,4 +1,4 @@
-import { createReadStream, statSync } from "node:fs";
+import { createReadStream, existsSync, statSync } from "node:fs";
 import { join, normalize, resolve } from "node:path";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, type Plugin } from "vite";
@@ -13,14 +13,18 @@ import { defineConfig, type Plugin } from "vite";
  * That means dev needs a handler that really honours it.
  */
 function dataTree(): Plugin {
-  const root = process.env.DIALOGYSX_DATA;
+  // Default to `<repo>/data`, which is where `dialogysx import` is documented
+  // to put things, so `pnpm dev` works with no environment variable.
+  const fallback = resolve(process.cwd(), "..", "..", "data");
+  const root =
+    process.env.DIALOGYSX_DATA ?? (existsSync(join(fallback, "pr")) ? fallback : undefined);
   return {
     name: "dialogysx-data-tree",
     configureServer(server) {
       if (!root) {
         server.config.logger.warn(
-          "[dialogysx] DIALOGYSX_DATA is not set, so /data serves nothing. " +
-            "Point it at a tree built by `dialogysx import`.",
+          "[dialogysx] No data tree found. Build one with `dialogysx import -o data`, " +
+            "or set DIALOGYSX_DATA to point elsewhere.",
         );
         return;
       }

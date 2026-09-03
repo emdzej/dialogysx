@@ -77,9 +77,43 @@ export class AppState {
     return { ...this.vehicle, criteria: { ...this.vehicle.criteria, ...this.answers } };
   }
 
-  async open(source: FileSource, label: string, language = "fr"): Promise<void> {
+  /** Languages the tree carries, from its manifest. */
+  languages = $state<string[]>([]);
+  language = $state<string>("fr");
+
+  /**
+   * Pick a language the tree actually has.
+   *
+   * `manifest.json` lists them because HTTP cannot list a directory. Defaulting
+   * blindly to `fr` against an English-only import finds no `classicvar.utf`,
+   * and every criterion then renders as a bare code — which looks like a
+   * parsing bug rather than a missing file.
+   */
+  private async pickLanguage(source: FileSource, wanted?: string): Promise<string> {
+    const bytes = await source.readAll("manifest.json").catch(() => undefined);
+    let available: string[] = [];
+    if (bytes) {
+      try {
+        const m = JSON.parse(new TextDecoder().decode(bytes)) as {
+          catalogueLanguages?: string[];
+        };
+        available = m.catalogueLanguages ?? [];
+      } catch {
+        // A malformed manifest is not fatal; fall through to the default.
+      }
+    }
+    this.languages = available;
+    if (wanted && available.includes(wanted)) return wanted;
+    const browser = navigator.language.slice(0, 2).toLowerCase();
+    if (available.includes(browser)) return browser;
+    return available[0] ?? wanted ?? "fr";
+  }
+
+  async open(source: FileSource, label: string, wanted?: string): Promise<void> {
     this.status = { kind: "loading", what: `opening ${label}` };
     try {
+      const language = await this.pickLanguage(source, wanted);
+      this.language = language;
       const session = await CatalogueSession.open(source, { language });
       if (!session.hasPlates) {
         this.status = {
@@ -155,6 +189,16 @@ export class AppState {
       const v = this.effectiveVehicle;
       if (s && this.group && v) this.plate = await s.plate(this.group, p.plate, v, p.drawing);
     }
+  }
+
+  /** Reopen the same source in another language. */
+  async reopen(language: string): Promise<void> {
+    const source = this.session?.source;
+    const label = this.status.kind === "ready" ? this.status.from : "tree";
+    if (!source) return;
+    const group = this.group;
+    await this.open(source, label, language);
+    if (group) await this.selectGroup(group);
   }
 
   clearAnswer(code: string): void {
