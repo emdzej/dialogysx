@@ -24,8 +24,33 @@ export interface DescribeOptions {
   codes?: boolean;
 }
 
+/**
+ * The three factory variables are mislabelled in the vocabulary.
+ *
+ * `classicvar.utf` gives `UVEH`, `UFMO` and `UFBV` the *code of their sibling
+ * build-number variable* rather than a word:
+ *
+ * | Variable | What it is | `classicvar` label |
+ * | --- | --- | --- |
+ * | `UVEH` | vehicle factory | `NFAB` |
+ * | `UFMO` | engine factory | `NFMO` |
+ * | `UFBV` | gearbox factory | `NFBV` |
+ *
+ * Rendered faithfully that produces `"NFMO = $ and Engine fabrication number
+ * <= 0005973"` in one condition — two different variables, one of them wearing
+ * the other's name. These overrides are not invented: `VarFactory.newVarVueSurDate`
+ * assigns exactly these three to vue 2, the factory view.
+ */
+const FACTORY_LABELS: Readonly<Record<string, string>> = {
+  UVEH: "Vehicle factory",
+  UFMO: "Engine factory",
+  UFBV: "Gearbox factory",
+};
+
 function nameOf(variable: CriterionCode, opts: DescribeOptions): string {
   if (opts.codes) return variable;
+  const override = FACTORY_LABELS[variable];
+  if (override) return override;
   const label = opts.vocabulary?.get(variable)?.label;
   return label && label.length > 0 ? label : variable;
 }
