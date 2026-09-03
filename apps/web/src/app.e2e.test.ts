@@ -264,11 +264,30 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await page.getByTestId("build-number").dispatchEvent("change");
 
     // Then answer the remaining criteria, which the original prompts for.
-    for (const ask of await page.locator(".ask select").all()) {
-      if ((await ask.locator("option").count()) > 1) {
-        await ask.selectOption({ index: 1 });
-        await page.waitForTimeout(400);
+    //
+    // Two things this loop has to get right, both of which it got wrong first:
+    // re-query the selects every pass, because answering one re-evaluates the
+    // plate and re-renders the rest; and never read "no questions on screen" as
+    // "everything is decided". The re-evaluation after the build number takes a
+    // couple of seconds, and an empty `.ask` list during it made the loop exit
+    // immediately with six parts still undecided.
+    for (let guard = 0; guard < 8; guard++) {
+      const settled = (await page.locator(".chrome .right").textContent()) ?? "";
+      if (/\b0 undecided/.test(settled)) break;
+      const asks = page.locator(".ask select");
+      await asks.first().waitFor({ timeout: 30_000 });
+      const remaining = await asks.count();
+      let answered = false;
+      for (let i = 0; i < remaining; i++) {
+        const sel = asks.nth(i);
+        if ((await sel.inputValue()) !== "") continue;
+        if ((await sel.locator("option").count()) < 2) continue;
+        await sel.selectOption({ index: 1 });
+        await page.waitForTimeout(1_000);
+        answered = true;
+        break;
       }
+      if (!answered) break;
     }
     await page.waitForFunction(
       () => /0 undecided/.test(document.querySelector(".chrome .right")?.textContent ?? ""),

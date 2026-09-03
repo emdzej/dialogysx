@@ -17,6 +17,7 @@ import {
   type VehicleSpec,
 } from "@dialogysx/catalogue";
 import type { PrGroup } from "@dialogysx/core";
+import { Generations } from "./generation.js";
 
 export type Status =
   | { kind: "idle" }
@@ -78,6 +79,24 @@ export class AppState {
 
   /** Criterion answers the user has supplied on top of the envelope row. */
   answers = $state<Record<string, string>>({});
+
+  /**
+   * Which request is allowed to write to `plate` — see `generation.ts` for the
+   * failure it prevents.
+   *
+   * Each action claims a generation on entry and only commits while it is still
+   * the newest. Nested calls are passed the caller's generation rather than
+   * claiming their own, or the outer call would invalidate itself.
+   */
+  private generations = new Generations();
+
+  private claim(): number {
+    return this.generations.claim();
+  }
+
+  private stale(gen: number): boolean {
+    return this.generations.stale(gen);
+  }
 
   /**
    * Factory and build number — the original's own way of narrowing a catalogue.
@@ -265,6 +284,7 @@ export class AppState {
    */
   async selectVehicle(v: VehicleSpec): Promise<void> {
     const s = this.session;
+    const gen = this.claim();
     this.vehicle = v;
     this.answers = {};
     this.plate = undefined;
@@ -289,7 +309,7 @@ export class AppState {
     }
     this.availability =
       (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
-    if (this.assembly) await this.selectAssembly(this.assembly);
+    if (this.assembly) await this.applyAssembly(this.assembly, gen);
   }
 
   /** Assemblies grouped by domain, for a navigable list. */
@@ -333,19 +353,37 @@ export class AppState {
   }
 
   async selectAssembly(organe: string): Promise<void> {
+    await this.applyAssembly(organe, this.claim());
+  }
+
+  /**
+   * @param keepOpen re-evaluating the assembly already on screen, so the plate
+   * stays visible while it is recomputed. Clearing it unconditionally blanked
+   * the drawing, the parts table and the criterion questions for as long as the
+   * lookup took — and anyone answering a question in that gap was clicking on
+   * controls that had just been removed.
+   */
+  private async applyAssembly(organe: string, gen: number, keepOpen = false): Promise<void> {
     const s = this.session;
     const v = this.effectiveVehicle;
     if (!s || !this.group) return;
     this.assembly = organe;
-    this.plate = undefined;
+    if (!keepOpen) this.plate = undefined;
     if (!v) {
       this.assemblyPlates = [];
       this.assemblyUnknown = [];
       return;
     }
     const r = await s.assemblyPlates(this.group, organe, v);
+    if (this.stale(gen)) return;
     this.assemblyPlates = r.plates;
     this.assemblyUnknown = r.unknown;
+    // Narrowing can drop the open plate from the assembly entirely; then it is
+    // no longer showing anything true and has to go.
+    const open = this.plate;
+    if (open && ![...r.plates, ...r.unknown].some((x) => x.plate === open.plate)) {
+      this.plate = undefined;
+    }
 
     // Auto-open when there is exactly one plate, which is the common case:
     // measured against a real vehicle, 67 % of assemblies in PR 1132 resolve
@@ -357,28 +395,28 @@ export class AppState {
     // and the plate combobox hides itself below two entries.
     const all = [...r.plates, ...r.unknown];
     const only = all.length === 1 ? all[0] : undefined;
-    if (only) await this.selectPlate(only);
+    if (only && only.plate !== this.plate?.plate) await this.applyPlate(only, gen);
   }
 
   async selectPlate(p: OrganePlate): Promise<void> {
+    await this.applyPlate(p, this.claim());
+  }
+
+  private async applyPlate(p: OrganePlate, gen: number): Promise<void> {
     const s = this.session;
     const v = this.effectiveVehicle;
     if (!s || !this.group || !v) return;
     this.hoveredRepere = undefined;
     this.pinnedRepere = undefined;
-    this.plate = await s.plate(this.group, p.plate, v, p.drawing);
+    const resolved = await s.plate(this.group, p.plate, v, p.drawing);
+    if (this.stale(gen)) return;
+    this.plate = resolved;
   }
 
   /** Answer a criterion question and re-evaluate what is showing. */
   async answer(code: string, value: string): Promise<void> {
     this.answers = { ...this.answers, [code]: value };
-    if (this.assembly) await this.selectAssembly(this.assembly);
-    const p = this.plate;
-    if (p) {
-      const s = this.session;
-      const v = this.effectiveVehicle;
-      if (s && this.group && v) this.plate = await s.plate(this.group, p.plate, v, p.drawing);
-    }
+    await this.reevaluate(this.claim());
   }
 
   /** Reopen the same source in another language. */
@@ -409,12 +447,27 @@ export class AppState {
 
   /** Re-evaluate after the factory or build number changes. */
   async refine(): Promise<void> {
+    await this.reevaluate(this.claim());
+  }
+
+  /**
+   * Re-run the open assembly and plate against the current specification.
+   *
+   * Reads `effectiveVehicle` *after* `applyAssembly`, not before: the plate has
+   * to be resolved against the same specification the assembly was, and the
+   * earlier version captured it up front while the nested call re-read it.
+   */
+  private async reevaluate(gen: number): Promise<void> {
     const s = this.session;
-    const v = this.effectiveVehicle;
-    if (!s || !this.group || !v) return;
-    if (this.assembly) await this.selectAssembly(this.assembly);
+    if (!s || !this.group) return;
+    if (this.assembly) await this.applyAssembly(this.assembly, gen, true);
+    if (this.stale(gen)) return;
     const p = this.plate;
-    if (p) this.plate = await s.plate(this.group, p.plate, v, p.drawing);
+    const v = this.effectiveVehicle;
+    if (!p || !v) return;
+    const resolved = await s.plate(this.group, p.plate, v, p.drawing);
+    if (this.stale(gen)) return;
+    this.plate = resolved;
   }
 
   clearAnswer(code: string): void {

@@ -79,6 +79,38 @@ export class BlobReader extends BaseReader {
  * 200 with the whole body would quietly read the wrong bytes, so that case is
  * rejected rather than trusted.
  */
+/**
+ * Thrown when a URL answers with a web page where data was expected.
+ *
+ * A single-page app answers *any* unknown path with its own HTML and a 200, so
+ * a mistyped base URL looks like a file that exists. Parsing that as an index
+ * gave "Offset is outside the bounds of the DataView" — a stack trace where the
+ * honest answer is "that is not a data tree".
+ *
+ * It is a distinct type because the two failures need opposite handling: a 404
+ * means *this file* is absent, which is normal and often expected, while HTML
+ * means the whole tree is somewhere else. Collapsing both into `undefined` made
+ * a wrong base URL look like a complete but empty catalogue.
+ */
+export class NotDataError extends Error {
+  constructor(
+    readonly url: string,
+    contentType: string,
+  ) {
+    super(
+      `${url}: server returned ${contentType}, not data — ` +
+        `this URL is probably not a Dialogys data tree`,
+    );
+    this.name = "NotDataError";
+  }
+}
+
+/** Reject a response whose body is a web page rather than catalogue data. */
+export function assertNotHtml(res: { headers: Headers }, url: string): void {
+  const type = res.headers.get("content-type") ?? "";
+  if (/\b(text\/html|application\/xhtml)\b/.test(type)) throw new NotDataError(url, type);
+}
+
 export class HttpRangeReader extends BaseReader {
   private cachedSize?: number;
 
@@ -103,6 +135,7 @@ export class HttpRangeReader extends BaseReader {
     if (this.cachedSize !== undefined) return this.cachedSize;
     const res = await this.fetchImpl(this.url, { method: "HEAD" });
     if (!res.ok) throw new Error(`HEAD ${this.url}: ${res.status}`);
+    assertNotHtml(res, this.url);
     const len = res.headers.get("content-length");
     if (len === null) throw new Error(`HEAD ${this.url}: no content-length`);
     this.cachedSize = Number(len);

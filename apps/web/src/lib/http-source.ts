@@ -10,7 +10,7 @@
  * across every dataset, gzipped on the wire.
  */
 import type { FileSource } from "@dialogysx/catalogue";
-import { BytesReader, HttpRangeReader, type Reader } from "@dialogysx/raf";
+import { assertNotHtml, BytesReader, HttpRangeReader, NotDataError, type Reader } from "@dialogysx/raf";
 
 export interface HttpSourceOptions {
   /** Base URL of the tree, i.e. the URL that stands in for `dialogys/data`. */
@@ -39,17 +39,26 @@ export class HttpTreeSource implements FileSource {
   async open(relativePath: string): Promise<Reader | undefined> {
     const reader = new HttpRangeReader(this.url(relativePath));
     try {
-      // A HEAD that 404s is how absence is detected; anything else propagates.
+      // A HEAD that 404s is how absence is detected.
       await reader.size();
       return reader;
-    } catch {
+    } catch (e) {
+      // "Not a data tree" is not absence — it means every subsequent probe will
+      // also "succeed" with a web page, so it has to reach the user instead of
+      // being folded into the empty case.
+      if (e instanceof NotDataError) throw e;
       return undefined;
     }
   }
 
   async readAll(relativePath: string): Promise<Uint8Array | undefined> {
-    const res = await fetch(this.url(relativePath));
+    const url = this.url(relativePath);
+    const res = await fetch(url);
     if (!res.ok) return undefined;
+    // Whole-file reads are where a wrong base URL actually bit: the index
+    // probes tolerate absence, so the first thing to *parse* a body was
+    // `PrModels.parse` on 365 bytes of `index.html`.
+    assertNotHtml(res, url);
     return new Uint8Array(await res.arrayBuffer());
   }
 
