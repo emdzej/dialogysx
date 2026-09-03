@@ -121,6 +121,15 @@ function isDrawingArchive(dest: string): boolean {
 }
 
 /**
+ * `pr/<group>.zip` holds a group's `ListeVarVal` — the value table every
+ * applicability condition indexes into. Extracting it makes that a plain URL,
+ * so the browser needs no zip reader on the critical path.
+ */
+function isGroupArchive(dest: string): boolean {
+  return /^pr\/[0-9A-Za-z]+\.zip$/.test(dest);
+}
+
+/**
  * `TM.zip` holds 99,056 small XML documents. Extracting makes each one an
  * individually addressable URL, which is the whole point of the static-tree
  * design — a client cannot range-read its way into a zip's deflate stream.
@@ -204,6 +213,15 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
           type: "extract",
           from,
           intoDir: dest.replace(/\/[^/]+\.zip$/, ""),
+          bytes,
+          source,
+          component: component.id,
+        };
+      } else if (isGroupArchive(dest)) {
+        action = {
+          type: "extract",
+          from,
+          intoDir: dest.replace(/\.zip$/, ""),
           bytes,
           source,
           component: component.id,

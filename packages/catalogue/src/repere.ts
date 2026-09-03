@@ -20,7 +20,18 @@ export function repereKey(drawing: string): Uint8Array {
 /**
  * Parse a callout record:
  *
- *     count:uint16be || count x (repere:uint16be, x:uint16be, y:uint16be)
+ *     count:uint16be || count x (repere:uint16be, g:uint16be, h:uint16be)
+ *
+ * From `TRepereFactory.newRepere`. `g` and `h` are the hotspot's **left and
+ * top in image pixels**, and `Repere.contains` tests a fixed **20 x 20 box**
+ * from there (`_CoteH = _CoteV = 20`). Parts drawings measure 1000 x 820, and
+ * observed coordinates sit inside that — e.g. `y = 8` for callouts along the
+ * top edge and `y = 786` along the bottom.
+ *
+ * `newRepere` stores `readShort() - 1` and `Repere.getNom()` adds it back, so
+ * the **stored value is the number printed on the drawing**. That is what is
+ * kept here, and it lines up with `PlateRepere.repere`, which is its 0-based
+ * array position plus one.
  *
  * The declared count is checked against the record length — `2 + 6*count` must
  * match exactly, and it does for every shipped record. A mismatch means the
@@ -42,6 +53,12 @@ export function parseReperes(bytes: Uint8Array): Repere[] {
   }
   return out;
 }
+
+/** Hotspot size in image pixels. `Repere._CoteH` / `_CoteV`, both 20. */
+export const REPERE_HOTSPOT_SIZE = 20;
+
+/** Nominal parts-drawing size, measured on the discs. */
+export const DRAWING_SIZE = { width: 1000, height: 820 } as const;
 
 export class RepereIndex {
   constructor(private readonly raf: IndexedRAF) {}

@@ -6,4 +6,8 @@ export * from "./part-search.js";
 export * from "./conditions.js";
 export * from "./plate.js";
 export * from "./values.js";
+export * from "./dates.js";
+export * from "./organe.js";
+export * from "./vehicle.js";
+export * from "./session.js";
 export * from "./disc.js";

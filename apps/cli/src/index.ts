@@ -25,6 +25,7 @@ import {
 import { decodeText, encodeKey } from "@dialogysx/raf";
 import { importCommand } from "./import/command.js";
 import { NodeDirectorySource } from "./node-source.js";
+import { organesCommand } from "./organes.js";
 import { platesCommand } from "./plates.js";
 
 const DATA_OPTION = ["-d, --data <dir>", "path to a disc's dialogys/data directory"] as const;
@@ -36,6 +37,7 @@ const program = new Command()
 
 program.addCommand(importCommand());
 program.addCommand(platesCommand());
+program.addCommand(organesCommand());
 
 program
   .command("datasets")

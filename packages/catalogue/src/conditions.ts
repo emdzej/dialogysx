@@ -156,6 +156,31 @@ export interface ConditionContext {
    * (`CondElemJoker` / `UtilJoker.siEgalAvecJoker`).
    */
   isJoker?(variable: CriterionCode): boolean;
+  /**
+   * Resolve an ordered comparison on a date or build-number variable.
+   *
+   * Supplied separately because it needs more than the criteria: the vehicle's
+   * build number, its factory, and the `Dates` dataset. Omit it and those
+   * clauses evaluate to unknown, which is what the catalogue-only path does.
+   *
+   * See `resolveDateCondition` in `./dates.ts`.
+   */
+  resolveDate?(
+    variable: CriterionCode,
+    operator: OperatorCode,
+    conditionValue: string,
+  ): Troolean | undefined;
+  /**
+   * True when `CondFactory` would have built a `CondElemDate` for this
+   * variable rather than a plain `CondElem`.
+   *
+   * The distinction is not cosmetic. `CondElemDate.getTroolean` goes straight
+   * to `VarDate.resolveDate` and **never reads the vehicle's criterion value**,
+   * so routing a date variable through the ordinary path makes it unknown the
+   * moment that criterion happens to be unset — which is most of the time for
+   * `MILL`.
+   */
+  isDateElem?(variable: CriterionCode): boolean;
 }
 
 /**
@@ -171,10 +196,22 @@ export function equalsWithJoker(value: string, pattern: string, joker = "-"): bo
   return true;
 }
 
-/** `CondElem.getTroolean`. */
+/** `CondElem.getTroolean`, plus `CondFactory`'s dispatch to `CondElemDate`. */
 export function evalCondElem(elem: CondElem, ctx: ConditionContext): Troolean {
   // An informational clause is not a filter; it carries text for the user.
   if (elem.operator === Operator.Information) return true;
+
+  // `CondFactory.newCondElem` chooses the clause *class* at parse time, and a
+  // date variable becomes a `CondElemDate` whose `getTroolean` ignores the
+  // criterion value entirely. Dispatch here for the same reason.
+  if (ctx.isDateElem?.(elem.variable)) {
+    // `CondElemDate` is constructed with `tValeur[tValIndi[0]]` — one already
+    // resolved string, not a list of indices.
+    const first = elem.valueIndices[0];
+    const raw = first === undefined ? undefined : ctx.valuesFor(elem.variable)?.[first];
+    if (raw === undefined) return "unknown";
+    return ctx.resolveDate?.(elem.variable, elem.operator, raw) ?? "unknown";
+  }
 
   const value = ctx.criterionValue(elem.variable);
   // `valeur == null -> new Troolean()`: unknown, which becomes a question.
@@ -202,9 +239,9 @@ export function evalCondElem(elem: CondElem, ctx: ConditionContext): Troolean {
     case Operator.NotEqual:
       return !matched;
     default:
-      // `CondElem` handles only = and ≠; the ordered operators belong to date
-      // variables (`CondElemDate.resolveDate`) and fall through to unknown
-      // here, exactly as the original's `default: return new Troolean()`.
+      // Plain `CondElem` handles only = and ≠; anything else is
+      // `default: return new Troolean()`. Date variables never reach here —
+      // they are dispatched above.
       return "unknown";
   }
 }
