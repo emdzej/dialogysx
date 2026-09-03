@@ -53,6 +53,7 @@ async function extractArchive(
   intoDir: string,
   seen: Map<string, string>,
   onEntry: (name: string, bytes: number) => void,
+  keepEntry?: (entryName: string) => boolean,
 ): Promise<{ entries: number; bytes: number; collisions: { path: string; from: string }[] }> {
   const zip = await openZip(archive);
   const collisions: { path: string; from: string }[] = [];
@@ -66,6 +67,7 @@ async function extractArchive(
       zip.on("entry", (entry: yauzl.Entry) => {
         // Directory entries end in "/" and carry no data.
         if (entry.fileName.endsWith("/")) return void zip.readEntry();
+        if (keepEntry && !keepEntry(entry.fileName)) return void zip.readEntry();
         // Reject traversal outright rather than sanitising it silently.
         if (entry.fileName.includes("..")) {
           reject(new Error(`${archive}: entry ${JSON.stringify(entry.fileName)} escapes the tree`));
@@ -160,7 +162,13 @@ export async function execute(
     } else {
       const intoDir = join(outRoot, action.intoDir);
       await mkdir(intoDir, { recursive: true });
-      const r = await extractArchive(action.from, intoDir, seenEntries, () => {});
+      const r = await extractArchive(
+        action.from,
+        intoDir,
+        seenEntries,
+        () => {},
+        action.keepEntry,
+      );
       result.extractedArchives++;
       result.extractedEntries += r.entries;
       result.bytesWritten += r.bytes;

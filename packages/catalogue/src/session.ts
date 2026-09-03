@@ -27,12 +27,50 @@ import {
 } from "./organe.js";
 import { evaluateRepere, parsePlate, type EvaluatedCandidate, type Plate } from "./plate.js";
 import { parseReperes, repereKey } from "./repere.js";
+import { Menu, PartNames, PrModels } from "./names.js";
 import { GroupValues } from "./values.js";
 import { datesKey, VehicleContext, type VehicleSpec } from "./vehicle.js";
+
+/**
+ * Countries to try per language for part descriptions, best coverage first.
+ *
+ * Measured: `GB/en` has 145,788 names against `IE/en`'s 17,797, so the order
+ * is not cosmetic.
+ */
+const PART_NAME_COUNTRIES: Readonly<Record<string, string[]>> = {
+  en: ["GB", "IN", "IR", "ZA", "DK", "IE"],
+  fr: ["FR", "BE", "CH", "LU"],
+  de: ["DE", "AT", "CH", "BE", "LU"],
+  es: ["ES", "MX", "AR", "CO"],
+  it: ["IT", "CH"],
+  nl: ["NL", "BE"],
+  pt: ["PT", "BR"],
+  sv: ["SE", "NO", "DK"],
+  cs: ["CZ", "SK"],
+  ru: ["RU", "UA"],
+  pl: ["PL"],
+  ro: ["RO"],
+  hu: ["HU"],
+  fi: ["FI"],
+  el: ["GR"],
+  hr: ["HR"],
+  sl: ["SI"],
+  tr: ["TR"],
+  ja: ["JP"],
+  ko: ["KR"],
+};
 
 /** One callout, ready to render: its position on the drawing and its parts. */
 /** An evaluated candidate plus its condition rendered into words. */
 export interface DescribedCandidate extends EvaluatedCandidate {
+  /**
+   * The part's description, when the loaded tariff names it.
+   *
+   * Often absent: a tariff names only what is sold in that market, so `GB/en`
+   * covers 37.8 % of the 327,169 references and all English sets together
+   * 42.6 %. An unnamed part is not an error.
+   */
+  name?: string;
   /**
    * One string per OR'd alternative, resolved through the group's value table.
    *
@@ -72,6 +110,46 @@ export interface ResolvedPlate {
 export interface SessionOptions {
   /** Language directory under `langue/`. */
   language?: string;
+  /**
+   * Country code for part descriptions, e.g. `"GB"`.
+   *
+   * They live per country as well as per language (`tarif/d3k/<CC>/<lg>/`)
+   * because a tariff names only the parts sold in that market. When omitted,
+   * the first country present for the language is used.
+   */
+  country?: string;
+}
+
+/** A model, and the PR groups that make it up. */
+export interface ModelEntry {
+  name: string;
+  code: string;
+  prGroups: PrGroup[];
+}
+
+/** An assembly with its label and the domain it sits under. */
+export interface AssemblyEntry {
+  code: string;
+  label?: string;
+  domain?: string;
+  domainLabel?: string;
+  /** Section the domain belongs to: `M`, `C` or `I`. */
+  section?: string;
+  sectionLabel?: string;
+}
+
+/**
+ * The assembly menu as the original presents it: **three cascading levels**.
+ *
+ * Its PR dialog is three side-by-side lists — section, domain, assembly — plus
+ * a search-by-name box. Measured over `menu`: 3 sections, 77 domains, 346
+ * assemblies. Flattening domain and assembly into one list loses a level the
+ * user is used to navigating.
+ */
+export interface AssemblySection {
+  code: string;
+  label: string;
+  domains: { code: string; label: string; assemblies: AssemblyEntry[] }[];
 }
 
 export class CatalogueSession {
@@ -79,6 +157,11 @@ export class CatalogueSession {
   private readonly groupValues = new Map<PrGroup, GroupValues | undefined>();
   private readonly dateBlocks = new Map<string, DateBlock | undefined>();
   private vocabulary?: CriteriaVocabulary;
+  private models?: PrModels;
+  private menu?: Menu;
+  private partNames?: PartNames;
+  /** Country whose part descriptions were loaded, if any. */
+  partNameCountry?: string;
 
   private planches?: IndexedRAF;
   private organes?: IndexedRAF;
@@ -118,7 +201,137 @@ export class CatalogueSession {
 
     const vocabBytes = await source.readAll(`langue/${s.language}/classicvar.utf`);
     if (vocabBytes) s.vocabulary = CriteriaVocabulary.parse(vocabBytes);
+
+    // Names are all optional: a `-c min` tree has none, and the interface
+    // falls back to codes rather than failing.
+    const modelBytes = await source.readAll("pr/ListePRModele");
+    if (modelBytes) s.models = PrModels.parse(modelBytes);
+    const menuBytes = await source.readAll(`langue/${s.language}/menu`);
+    if (menuBytes) s.menu = Menu.parse(menuBytes);
+    await s.loadPartNames(opts.country);
     return s;
+  }
+
+  /**
+   * Load part descriptions for a country.
+   *
+   * Tries the requested country, then likely ones for the language, then gives
+   * up quietly — HTTP cannot list a directory, so there is no enumerating what
+   * is present.
+   */
+  private async loadPartNames(country?: string): Promise<void> {
+    const candidates = country
+      ? [country]
+      : (PART_NAME_COUNTRIES[this.language] ?? [this.language.toUpperCase()]);
+    for (const cc of candidates) {
+      const bytes = await this.source.readAll(
+        `tarif/d3k/${cc}/${this.language}/libellePieces-${this.language}.txt`,
+      );
+      if (bytes) {
+        this.partNames = PartNames.parse(bytes);
+        this.partNameCountry = cc;
+        return;
+      }
+    }
+  }
+
+  get names(): PartNames | undefined {
+    return this.partNames;
+  }
+
+  get menuTree(): Menu | undefined {
+    return this.menu;
+  }
+
+  nameOfPart(ref: PartRef): string | undefined {
+    return this.partNames?.get(ref);
+  }
+
+  modelOf(pr: PrGroup): string | undefined {
+    return this.models?.nameOf(pr, this.vocabulary);
+  }
+
+  /**
+   * Models with their PR groups — the top of the original's identification
+   * flow, and a far shorter list than 147 numeric groups.
+   */
+  async modelList(): Promise<ModelEntry[]> {
+    const present = new Set(await this.prGroups());
+    const byName = new Map<string, ModelEntry>();
+    for (const m of this.models?.all ?? []) {
+      if (!present.has(m.pr)) continue;
+      const name = this.models?.nameOf(m.pr, this.vocabulary) ?? m.code;
+      const entry = byName.get(name) ?? { name, code: m.code, prGroups: [] };
+      entry.prGroups.push(m.pr);
+      byName.set(name, entry);
+    }
+    return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /**
+   * Which assemblies actually yield plates for a vehicle.
+   *
+   * The original's `categorieVersTabOfNumPlanche` returns an empty list for an
+   * assembly that does not apply, so the interface should not offer it as if it
+   * did. For a Master II (`ED01`) only 89 of 154 assemblies have any plate —
+   * "Complete engine" is one of the 65 that do not, because its plates list
+   * sibling variants instead. Without this the user hunts blind through a menu
+   * two thirds of which is empty.
+   */
+  async assemblyAvailability(
+    pr: PrGroup,
+    spec: VehicleSpec,
+  ): Promise<Map<string, { plates: number; unknown: number }>> {
+    const out = new Map<string, { plates: number; unknown: number }>();
+    const ctx = await this.contextFor(spec);
+    for (const code of await this.assembliesOf(pr)) {
+      const a = await this.assembly(pr, code);
+      if (!a) continue;
+      const r = evaluateOrgane(a, ctx);
+      out.set(code, { plates: r.plates.length, unknown: r.unknown.length });
+    }
+    return out;
+  }
+
+  /** Assemblies of a PR group, with labels and their place in the menu. */
+  async assemblyList(pr: PrGroup): Promise<AssemblyEntry[]> {
+    const codes = await this.assembliesOf(pr);
+    return codes.map((code) => {
+      const domain = this.menu?.domainOf(code);
+      const section = this.menu?.sectionOf(code);
+      return {
+        code,
+        label: this.menu?.labelOf(code),
+        domain: domain?.code,
+        domainLabel: domain?.label,
+        section: section?.code,
+        sectionLabel: section?.label,
+      };
+    });
+  }
+
+  /**
+   * The three-level menu, restricted to assemblies this PR group actually has.
+   *
+   * Order follows the `menu` file rather than the codes, because that is the
+   * order the original's lists are in.
+   */
+  async assemblyTree(pr: PrGroup): Promise<AssemblySection[]> {
+    const have = new Map((await this.assemblyList(pr)).map((a) => [a.code, a]));
+    const out: AssemblySection[] = [];
+    for (const section of this.menu?.roots ?? []) {
+      const domains: AssemblySection["domains"] = [];
+      for (const domain of section.children) {
+        const assemblies = domain.children
+          .map((n) => have.get(n.code))
+          .filter((a): a is AssemblyEntry => a !== undefined);
+        if (assemblies.length > 0) {
+          domains.push({ code: domain.code, label: domain.label, assemblies });
+        }
+      }
+      if (domains.length > 0) out.push({ code: section.code, label: section.label, domains });
+    }
+    return out;
   }
 
   get criteria(): CriteriaVocabulary | undefined {
@@ -241,6 +454,7 @@ export class CatalogueSession {
     const describeOpts = { values, vocabulary: this.vocabulary };
     const describe = (c: EvaluatedCandidate): DescribedCandidate => ({
       ...c,
+      name: this.partNames?.get(c.ref),
       conditionLines: c.applicability ? describeBloc(c.applicability, describeOpts).lines : [],
     });
 

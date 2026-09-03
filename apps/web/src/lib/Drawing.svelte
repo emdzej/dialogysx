@@ -110,7 +110,7 @@
     /* A white mat: the drawings are black line art on transparent, so they
        vanish on a dark background. */
     background: #fff;
-    border: 1px solid var(--line);
+    border: 1px solid var(--rule);
     border-radius: 3px;
     line-height: 0;
   }
@@ -136,17 +136,17 @@
   }
   .hotspot:hover,
   .hotspot:focus-visible {
-    background: color-mix(in srgb, var(--accent) 22%, transparent);
-    border-color: var(--accent);
+    background: color-mix(in srgb, var(--blue) 22%, transparent);
+    border-color: var(--blue);
   }
   .hotspot.active {
-    background: color-mix(in srgb, var(--accent) 34%, transparent);
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent);
+    background: color-mix(in srgb, var(--blue) 34%, transparent);
+    border-color: var(--blue);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue) 30%, transparent);
   }
   .empty,
   .note {
-    color: var(--dim);
+    color: var(--ink-faint);
     font-size: 0.85rem;
     margin: 0.5rem 0 0;
   }
@@ -155,7 +155,7 @@
     text-align: center;
   }
   code {
-    font-family: ui-monospace, monospace;
+    font-family: var(--mono);
     font-size: 0.85em;
   }
 </style>

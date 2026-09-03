@@ -70,6 +70,16 @@ export class VehicleContext implements ConditionContext {
   }
 
   /**
+   * `CondElemJoker.getTValeurConditions`: the table named `<variable>COND`.
+   *
+   * `Constantes.S_COND = "COND"`, so `TYP_` resolves through `TYP_COND`, whose
+   * entries carry the `-` wildcards the joker comparison exists for.
+   */
+  jokerValuesFor(variable: CriterionCode): readonly string[] | undefined {
+    return this.parts.values?.valuesFor(`${variable}COND`, this.parts.vocabulary);
+  }
+
+  /**
    * `CondFactory`'s test: in `H_VUES_DATE`, **except `UVEH`**.
    *
    * `CondFactory.newCondElem` reads

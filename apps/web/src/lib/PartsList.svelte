@@ -52,6 +52,7 @@
       <tr>
         <th class="num">No.</th>
         <th>Reference</th>
+        <th>Description</th>
         <th>Applies</th>
       </tr>
     </thead>
@@ -65,7 +66,7 @@
           onclick={() => onPin(row.repere)}
         >
           <td class="num">{row.repere}</td>
-          <td>
+          <td class="ref">
             <code>{row.cand.ref}</code>
             {#if row.cand.replacements}
               <span class="sup" title="Superseded by">&rarr; {row.cand.replacements.join(", ")}</span>
@@ -74,6 +75,16 @@
               <span class="tag choice" title="The original asks the user to pick between variants"
                 >choice</span
               >
+            {/if}
+          </td>
+          <td class="name">
+            {#if row.cand.name}
+              {row.cand.name}
+            {:else}
+              <!-- A tariff names only the parts sold in that market, so under
+                   half of all references have a description. Say so rather
+                   than leave the cell blank, which reads as a bug. -->
+              <span class="dim" title="This tariff does not name this part">not in this tariff</span>
             {/if}
           </td>
           <td class="cond">
@@ -116,57 +127,64 @@
   td {
     text-align: left;
     padding: 0.3rem 0.6rem 0.3rem 0;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--rule);
     vertical-align: top;
   }
   th {
     font-size: 0.68rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--dim);
+    color: var(--ink-faint);
     font-weight: 600;
     position: sticky;
     top: 0;
-    background: var(--bg);
+    background: var(--card);
   }
   .num {
     width: 2.5rem;
     text-align: right;
     padding-right: 0.75rem;
     font-variant-numeric: tabular-nums;
-    color: var(--dim);
+    color: var(--ink-faint);
   }
   tbody tr {
     cursor: pointer;
   }
   tbody tr:hover {
-    background: color-mix(in srgb, var(--accent) 7%, transparent);
+    background: color-mix(in srgb, var(--blue) 7%, transparent);
   }
   tbody tr.active {
-    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    background: color-mix(in srgb, var(--blue) 15%, transparent);
   }
   tbody tr.active .num {
-    color: var(--accent);
+    color: var(--blue);
     font-weight: 600;
   }
   tr.unknown code {
-    color: var(--dim);
+    color: var(--ink-faint);
   }
   code {
-    font-family: ui-monospace, monospace;
+    font-family: var(--mono);
     font-size: 0.95em;
   }
   .cond {
-    color: var(--dim);
+    color: var(--ink-faint);
     font-size: 0.8rem;
   }
+  .ref {
+    white-space: nowrap;
+  }
+  .name {
+    color: var(--ink);
+    min-width: 9rem;
+  }
   .dim {
-    color: var(--dim);
+    color: var(--ink-faint);
   }
   .sup {
-    font-family: ui-monospace, monospace;
+    font-family: var(--mono);
     font-size: 0.8em;
-    color: var(--accent);
+    color: var(--blue);
     margin-left: 0.4rem;
   }
   .tag {
@@ -180,13 +198,13 @@
     margin-right: 0.35rem;
   }
   .tag.maybe {
-    color: var(--warn);
+    color: var(--red);
   }
   .tag.choice {
-    color: var(--dim);
+    color: var(--ink-faint);
   }
   .empty {
-    color: var(--dim);
+    color: var(--ink-faint);
     font-size: 0.85rem;
   }
   .alts {
@@ -199,7 +217,7 @@
   }
   .alts li + li::before {
     content: "or ";
-    color: var(--accent);
+    color: var(--blue);
   }
   .more {
     font: inherit;
@@ -207,7 +225,7 @@
     padding: 0;
     border: none;
     background: none;
-    color: var(--accent);
+    color: var(--blue);
     cursor: pointer;
     text-decoration: underline;
   }

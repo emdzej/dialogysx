@@ -5,6 +5,7 @@ export * from "./repere.js";
 export * from "./part-search.js";
 export * from "./conditions.js";
 export * from "./describe.js";
+export * from "./names.js";
 export * from "./plate.js";
 export * from "./values.js";
 export * from "./dates.js";

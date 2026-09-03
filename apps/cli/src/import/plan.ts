@@ -36,6 +36,14 @@ export interface ExtractAction {
   intoDir: string;
   bytes: number;
   source: DiscSource;
+  /**
+   * Which entries to keep, by their name inside the archive.
+   *
+   * `tarif.zip` is 207 MB of 42 country/language datasets; without this,
+   * asking for English part names unpacks all 42. Filtering at the entry level
+   * is the difference between ~10 MB and ~200 MB.
+   */
+  keepEntry?: (entryName: string) => boolean;
 }
 
 export type Action = CopyAction | ExtractAction;
@@ -130,6 +138,23 @@ function isGroupArchive(dest: string): boolean {
 }
 
 /**
+ * `tarif.zip` holds 42 country/language datasets — the part **descriptions** as
+ * well as the prices. Extracting it lets the two be separate components, and
+ * makes `libellePieces-<lg>.txt` a plain URL.
+ */
+function isTarifArchive(dest: string): boolean {
+  return dest === "tarif.zip";
+}
+
+/**
+ * `langue/<lg>/<lg>.zip` carries the `menu` tree, which is the only source of
+ * assembly and domain names. Extracted for the same reason as the group zips.
+ */
+function isLanguageArchive(dest: string): boolean {
+  return /^langue\/([^/]+)\/\1\.zip$/.test(dest);
+}
+
+/**
  * `TM.zip` holds 99,056 small XML documents. Extracting makes each one an
  * individually addressable URL, which is the whole point of the static-tree
  * design — a client cannot range-read its way into a zip's deflate stream.
@@ -148,6 +173,30 @@ function isLabourTimeArchive(dest: string): boolean {
  */
 function isVersionStamp(dest: string): boolean {
   return dest.startsWith("update/");
+}
+
+/**
+ * Which `tarif.zip` entries to unpack.
+ *
+ * Paths inside are `tarif/d3k/<COUNTRY>/<lang>/<file>`. Language is the filter
+ * that matters — a country is only a pricing region, and several share one
+ * language — so this keeps every country whose language was asked for, and
+ * splits `libelles*` (part names) from `tarif`/`CBareme` (prices) by component.
+ */
+function tarifEntryFilter(
+  selected: Set<string>,
+  languages: string[] | undefined,
+): (entryName: string) => boolean {
+  const wantNames = selected.has("part-names");
+  const wantPrices = selected.has("pricing");
+  return (entryName) => {
+    const m = /^tarif\/d3k\/[^/]+\/([^/]+)\/(.+)$/.exec(entryName);
+    if (!m) return false;
+    const [, lang, file] = m;
+    if (languages && lang !== undefined && !languages.includes(lang)) return false;
+    const isName = /^(libellePieces-.+\.txt|libelles(\.idx)?)$/.test(file ?? "");
+    return isName ? wantNames : wantPrices;
+  };
 }
 
 async function sha256(path: string): Promise<string> {
@@ -225,6 +274,18 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
           bytes,
           source,
           component: component.id,
+        };
+      } else if (isTarifArchive(dest) || isLanguageArchive(dest)) {
+        action = {
+          type: "extract",
+          from,
+          // Both archives carry their own directory prefix internally, so they
+          // extract next to themselves rather than into a new subdirectory.
+          intoDir: isTarifArchive(dest) ? "" : dest.replace(/\/[^/]+\.zip$/, ""),
+          bytes,
+          source,
+          component: component.id,
+          keepEntry: isTarifArchive(dest) ? tarifEntryFilter(selected, languages) : undefined,
         };
       } else if (isLabourTimeArchive(dest)) {
         action = {

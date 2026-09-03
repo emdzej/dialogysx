@@ -43,8 +43,10 @@ export const COMPONENTS: readonly ComponentSpec[] = [
   },
   {
     id: "criteria",
-    what: "Per-language criteria vocabulary and interface strings (langue/)",
-    withoutIt: "criteria show as raw codes (MOT3, AIRC) and cannot be evaluated",
+    what: "Per-language criteria vocabulary, model names and menu labels (langue/)",
+    withoutIt:
+      "criteria show as raw codes (MOT3, AIRC) and cannot be evaluated, and " +
+      "assemblies and models have no names",
     matches: inDir("langue"),
     defaultOn: true,
   },
@@ -118,13 +120,22 @@ export const COMPONENTS: readonly ComponentSpec[] = [
     defaultOn: false,
   },
   {
+    id: "part-names",
+    what: "Part descriptions per country and language (tarif/d3k/*/*/libellePieces-*.txt and libelles)",
+    withoutIt: "the parts list shows bare 10-digit references and nothing else",
+    // Extracted from tarif.zip, which also holds the prices — see `pricing`.
+    matches: (d) =>
+      d === "tarif.zip" ||
+      /^tarif\/d3k\/[^/]+\/[^/]+\/(libellePieces-[^/]+\.txt|libelles(\.idx)?)$/.test(d),
+    defaultOn: true,
+  },
+  {
     id: "pricing",
-    what: "Tariffs / price data (tarif.zip)",
+    what: "Tariffs and price scales (tarif/d3k/*/*/tarif, tarif.idx, CBareme)",
     withoutIt:
-      "no prices. Explicitly out of scope for this project — named here so it shows " +
-      "as a deliberate omission rather than an oversight, and so nobody has to " +
-      "re-discover what the file is",
-    matches: (d) => d === "tarif.zip",
+      "no prices. Explicitly out of scope for this project — named here so the " +
+      "omission is deliberate rather than an oversight",
+    matches: (d) => /^tarif\/d3k\/[^/]+\/[^/]+\/(tarif(\.idx)?|CBareme)$/.test(d),
     defaultOn: false,
   },
   {

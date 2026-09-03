@@ -154,6 +154,8 @@ export interface ConditionContext {
   /**
    * True when the variable is matched with `-` as a wildcard
    * (`CondElemJoker` / `UtilJoker.siEgalAvecJoker`).
+   *
+   * `VarFactory.S_AVEC_JOKE = "TYP_|EQPT"` — exactly two.
    */
   isJoker?(variable: CriterionCode): boolean;
   /**
@@ -181,6 +183,13 @@ export interface ConditionContext {
    * `MILL`.
    */
   isDateElem?(variable: CriterionCode): boolean;
+  /**
+   * The wildcard-pattern table for a joker variable — `<name>COND`.
+   *
+   * Separate from `valuesFor` because it is a separate table in the data, and
+   * conflating them is the difference between a plate appearing and not.
+   */
+  jokerValuesFor?(variable: CriterionCode): readonly string[] | undefined;
 }
 
 /**
@@ -217,10 +226,18 @@ export function evalCondElem(elem: CondElem, ctx: ConditionContext): Troolean {
   // `valeur == null -> new Troolean()`: unknown, which becomes a question.
   if (value === undefined) return "unknown";
 
-  const values = ctx.valuesFor(elem.variable);
-  if (values === undefined) return "unknown";
-
+  // A joker clause reads a **different value table**.
+  // `CondElemJoker.getTValeurConditions` returns
+  // `PR.getTValeur(nomVar + Constantes.S_COND)`, so `TYP_` clauses index
+  // `TYP_COND` — 300 wildcard patterns like `ED--` and `ED-1` — not the 227
+  // concrete types in `TYP_`. Using the plain table makes the patterns
+  // unreachable and the clause false, which silently hides plates that do
+  // apply: a Master II `ED01` matches `ED--` but no literal entry.
   const joker = ctx.isJoker?.(elem.variable) ?? false;
+  const values = joker
+    ? (ctx.jokerValuesFor?.(elem.variable) ?? ctx.valuesFor(elem.variable))
+    : ctx.valuesFor(elem.variable);
+  if (values === undefined) return "unknown";
   let matched = false;
   for (const index of elem.valueIndices) {
     // The original guards with `_TValIndi[i] < tValeur.length`, so an
