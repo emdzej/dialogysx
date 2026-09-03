@@ -1,0 +1,28 @@
+{
+  "name": "@dialogysx/cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dialogys disc tooling: validate the formats, inspect datasets, build a static tree",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "bin": {
+    "dialogysx": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@commander-js/extra-typings": "^15.0.0",
+    "@dialogysx/catalogue": "workspace:*",
+    "@dialogysx/core": "workspace:*",
+    "@dialogysx/raf": "workspace:*",
+    "chalk": "^6.0.0",
+    "commander": "^15.0.0",
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1"
+  }
+}
