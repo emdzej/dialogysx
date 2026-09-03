@@ -20,20 +20,6 @@
   import { isSupported, LocalDirectorySource, revokeImageUrl } from "./lib/local-source";
   import { app } from "./lib/state.svelte";
 
-  /** The ten date and build-number views, for the "enter a build number" nudge. */
-  const DATE_CRITERIA = new Set([
-    "NFAB",
-    "MILL",
-    "UVEH",
-    "MFAB",
-    "NFMO",
-    "D_MO",
-    "UFMO",
-    "NFBV",
-    "D_BV",
-    "UFBV",
-  ]);
-
   let baseUrl = $state("/data");
 
   const openHttp = () => app.open(new HttpTreeSource({ baseUrl }), baseUrl);
@@ -297,15 +283,41 @@
         {#if app.plate.questions.length > 0}
           <div class="questions" data-testid="questions">
             <strong>{app.undecidedCount} parts undecided.</strong>
-            {#if !app.buildNumber && app.plate.questions.some((q) => DATE_CRITERIA.has(q))}
-              Enter a build number above to settle the date-based ones.
+            {#if app.plate.dateQuestions.length > 0}
+              {#if !app.buildNumber}
+                Enter a build number above to settle the date-based ones.
+              {:else if !app.factory}
+                <!-- A build number alone cannot be compared: `resolveDate`
+                     needs `factory + number` to look up the Dates table. -->
+                Pick a <strong>factory</strong> as well — a build number cannot be compared without
+                one.
+              {/if}
             {/if}
-            Unanswered criteria:
-            {#each app.plate.questions as q (q)}
-              <span class="qtag" title={app.vocabulary?.get(q)?.question ?? q}>
-                {app.vocabulary?.get(q)?.label || q}
-              </span>
-            {/each}
+            <div class="asks">
+              {#each app.plate.questionOptions as q (q.code)}
+                {#if q.values.length > 0}
+                  <!-- Answerable, because the original asks rather than
+                       guesses: an unknown criterion is a question, and until
+                       it is answered the part stays listed and marked. -->
+                  <label class="ask">
+                    <span>{q.label}</span>
+                    <select
+                      value={app.answers[q.code] ?? ""}
+                      onchange={(e) => app.answer(q.code, e.currentTarget.value)}
+                    >
+                      <option value="">?</option>
+                      {#each q.values as v (v)}
+                        <option value={v}>{v}</option>
+                      {/each}
+                    </select>
+                  </label>
+                {:else}
+                  <span class="qtag" title="No values for this criterion in this PR group"
+                    >{q.label}</span
+                  >
+                {/if}
+              {/each}
+            </div>
           </div>
         {/if}
 
@@ -565,6 +577,26 @@
   }
   .questions strong {
     color: var(--red);
+  }
+  .asks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.8rem;
+    margin-top: 0.35rem;
+  }
+  .ask {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .ask > span {
+    font-size: 0.74rem;
+    color: var(--ink-soft);
+  }
+  .ask select {
+    font-size: 0.74rem;
+    padding: 0 0.15rem;
+    max-width: 14rem;
   }
   .qtag {
     display: inline-block;

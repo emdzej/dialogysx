@@ -239,7 +239,11 @@ export class AppState {
     // Offer only the factories this vehicle was actually built at.
     const block = await s?.datesFor("dveh", v);
     this.factories = block?.factories ?? [];
-    this.factory = "";
+    // Default to the only factory when there is one. A build number is
+    // useless without it — `resolveDate` compares `factory + number` against
+    // the Dates table — and leaving it on "any" made an entered build number
+    // look ignored.
+    this.factory = this.factories.length === 1 ? (this.factories[0] ?? "") : "";
     this.buildNumber = "";
     if (s && v.pr !== this.group) {
       this.group = v.pr;
@@ -247,10 +251,12 @@ export class AppState {
       this.assemblies = await s.assemblyList(v.pr);
       this.assemblyPlates = [];
       this.assemblyUnknown = [];
-      this.availability = (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
+      this.availability =
+        (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
       return;
     }
-    this.availability = (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
+    this.availability =
+      (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
     if (this.assembly) await this.selectAssembly(this.assembly);
   }
 

@@ -162,13 +162,7 @@ export async function execute(
     } else {
       const intoDir = join(outRoot, action.intoDir);
       await mkdir(intoDir, { recursive: true });
-      const r = await extractArchive(
-        action.from,
-        intoDir,
-        seenEntries,
-        () => {},
-        action.keepEntry,
-      );
+      const r = await extractArchive(action.from, intoDir, seenEntries, () => {}, action.keepEntry);
       result.extractedArchives++;
       result.extractedEntries += r.entries;
       result.bytesWritten += r.bytes;

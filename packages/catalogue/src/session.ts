@@ -12,7 +12,7 @@ import type { CriterionCode, PartRef, PrGroup, Repere, VehicleType } from "@dial
 import { decodeText, encodeKey, type IndexedRAF } from "@dialogysx/raf";
 import { CriteriaVocabulary } from "./criteria.js";
 import { describeBloc } from "./describe.js";
-import { DateBlock, type DateGroup } from "./dates.js";
+import { DateBlock, isDateVariable, type DateGroup } from "./dates.js";
 import { findDataset } from "./datasets.js";
 import { Disc, type FileSource } from "./disc.js";
 import { Envelope, parseEnvelopeRecord } from "./envelope.js";
@@ -102,8 +102,18 @@ export interface ResolvedPlate {
   /** URL path of the drawing PNG in an imported tree. */
   drawingPath?: string;
   reperes: ResolvedRepere[];
-  /** Criteria the undecided conditions depend on — what to ask the user. */
+  /**
+   * Criteria the undecided conditions depend on, with the values they could
+   * take — what the original would prompt for.
+   *
+   * The values come from the PR group's table, not the whole vocabulary: a
+   * group only uses a subset, and offering the rest would invite answers that
+   * cannot match anything.
+   */
   questions: CriterionCode[];
+  questionOptions: { code: CriterionCode; label: string; values: string[] }[];
+  /** Open criteria that a factory and build number would settle. */
+  dateQuestions: CriterionCode[];
   raw: Plate;
 }
 
@@ -479,6 +489,23 @@ export class CatalogueSession {
       };
     });
 
+    // Date and build-number views are deliberately *not* offered as value
+    // pickers. Their "values" are hundreds of raw event labels
+    // (`000119`, `MOD0311`, ...) — `NFAB` alone lists over 400 — and the
+    // original does not ask you to choose one either: it asks for a factory
+    // and a build number, which is what the interface's own two controls are
+    // for. Offering the list invites an answer that means nothing.
+    const questionOptions = [...questions]
+      .filter((code) => !isDateVariable(code))
+      .map((code) => ({
+        code,
+        label: this.vocabulary?.get(code)?.label || code,
+        values: [...(values?.valuesFor(code, this.vocabulary) ?? [])].filter((v) => v.length > 0),
+      }));
+
+    /** Date criteria that are still open, for the "enter a build number" nudge. */
+    const dateQuestions = [...questions].filter((code) => isDateVariable(code));
+
     return {
       key,
       pr,
@@ -487,6 +514,8 @@ export class CatalogueSession {
       drawingPath: drawing ? drawingPath(drawing) : undefined,
       reperes,
       questions: [...questions],
+      questionOptions,
+      dateQuestions,
       raw: parsed,
     };
   }

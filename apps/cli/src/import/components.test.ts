@@ -30,7 +30,14 @@ describe("component routing", () => {
     ["mrnt/ru/d3k/chapitres/NTI-RU/0544A.pdf", "repair-xml"],
     ["mrnt/ru/d3k/images/images_1.zip", "repair-xml"],
     ["TM.zip", "labour-times"],
-    ["tarif.zip", "pricing"],
+    // The archive itself routes to `part-names` so it is reachable when names
+    // are wanted; prices and names are separated at the *entry* level inside
+    // it, because one zip carries both.
+    ["tarif.zip", "part-names"],
+    ["tarif/d3k/GB/en/libellePieces-en.txt", "part-names"],
+    ["tarif/d3k/GB/en/libelles", "part-names"],
+    ["tarif/d3k/GB/en/tarif", "pricing"],
+    ["tarif/d3k/GB/en/CBareme", "pricing"],
     ["app/java/dialogysapplet.jar", "app"],
   ])("routes %s to %s", (dest, expected) => {
     expect(componentFor(dest)?.id).toBe(expected);
@@ -50,6 +57,13 @@ describe("component routing", () => {
     // Both are out of scope by decision, not by accident.
     expect(DEFAULT_COMPONENTS).not.toContain("pricing");
     expect(DEFAULT_COMPONENTS).not.toContain("labour-times");
+  });
+
+  it("keeps part names on by default even though they ship with the prices", () => {
+    // Descriptions live inside tarif.zip next to the tariffs, which is why
+    // they were initially written off as pricing. Without them the parts list
+    // is bare 10-digit references.
+    expect(DEFAULT_COMPONENTS).toContain("part-names");
   });
 
   it("skips Windows detritus that is actually on the discs", () => {
