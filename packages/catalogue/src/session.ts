@@ -27,7 +27,7 @@ import {
 } from "./organe.js";
 import { evaluateRepere, parsePlate, type EvaluatedCandidate, type Plate } from "./plate.js";
 import { parseReperes, repereKey } from "./repere.js";
-import { Menu, PartNames, PrModels } from "./names.js";
+import { BRAND_SOURCES, Menu, parseBrandModels, PartNames, PrModels, type Brand } from "./names.js";
 import { GroupValues } from "./values.js";
 import { datesKey, VehicleContext, type VehicleSpec } from "./vehicle.js";
 
@@ -172,6 +172,7 @@ export class CatalogueSession {
   private partNames?: PartNames;
   /** Country whose part descriptions were loaded, if any. */
   partNameCountry?: string;
+  private brandList: Brand[] = [];
 
   private planches?: IndexedRAF;
   private organes?: IndexedRAF;
@@ -219,7 +220,29 @@ export class CatalogueSession {
     const menuBytes = await source.readAll(`langue/${s.language}/menu`);
     if (menuBytes) s.menu = Menu.parse(menuBytes);
     await s.loadPartNames(opts.country);
+    await s.loadBrands();
     return s;
+  }
+
+  /** Read the brand files. Absent ones are simply not offered. */
+  private async loadBrands(): Promise<void> {
+    const out: Brand[] = [];
+    for (const src of BRAND_SOURCES) {
+      for (const file of src.files) {
+        const bytes = await this.source.readAll(file);
+        if (!bytes) continue;
+        const modelIndices = parseBrandModels(bytes);
+        if (modelIndices.length > 0) {
+          out.push({ id: src.id, label: src.label, modelIndices });
+        }
+        break;
+      }
+    }
+    this.brandList = out;
+  }
+
+  get brands(): readonly Brand[] {
+    return this.brandList;
   }
 
   /**
@@ -265,11 +288,17 @@ export class CatalogueSession {
    * Models with their PR groups — the top of the original's identification
    * flow, and a far shorter list than 147 numeric groups.
    */
-  async modelList(): Promise<ModelEntry[]> {
+  async modelList(brandId?: string): Promise<ModelEntry[]> {
     const present = new Set(await this.prGroups());
+    // A brand is a set of `MOD_` indices, so filtering happens on the index
+    // rather than the name — the same index `ListePRModele` stores.
+    const allowed = brandId
+      ? new Set(this.brandList.find((b) => b.id === brandId)?.modelIndices ?? [])
+      : undefined;
     const byName = new Map<string, ModelEntry>();
     for (const m of this.models?.all ?? []) {
       if (!present.has(m.pr)) continue;
+      if (allowed && !allowed.has(m.modelIndex)) continue;
       const name = this.models?.nameOf(m.pr, this.vocabulary) ?? m.code;
       const entry = byName.get(name) ?? { name, code: m.code, prGroups: [] };
       entry.prGroups.push(m.pr);

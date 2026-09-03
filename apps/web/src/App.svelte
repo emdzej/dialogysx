@@ -14,6 +14,7 @@
    * as an identifier.
    */
   import { plateLabel, type VehicleSpec } from "@dialogysx/catalogue";
+  import Combo from "./lib/Combo.svelte";
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
   import { HttpTreeSource } from "./lib/http-source";
@@ -63,6 +64,12 @@
     return [c.TYP_, c.NEQT, c.EQPT, engine, c.BVI3].filter(Boolean).join(" · ");
   }
 
+  /** Stable identity for a vehicle: the full envelope key. */
+  function vehicleKey(v: VehicleSpec): string {
+    const c = v.criteria;
+    return [v.pr, c.TYP_, c.NEQT, c.EQPT, c.MOT3, c.MOTI, c.BVI3].join("|");
+  }
+
   const plates = $derived([
     ...app.assemblyPlates.map((p) => ({ p, undecided: false })),
     ...app.assemblyUnknown.map((p) => ({ p, undecided: true })),
@@ -102,44 +109,44 @@
     </section>
   {:else}
     <div class="bar">
-      <label>
-        <span>Model</span>
-        <select
-          data-testid="models"
-          value={app.model?.name ?? ""}
-          onchange={(e) => {
-            const m = app.models.find((x) => x.name === e.currentTarget.value);
-            if (m) app.selectModel(m);
-          }}
-        >
-          <option value="" disabled>{app.models.length} models&hellip;</option>
-          {#each app.models as m (m.name)}
-            <option value={m.name}>{m.name}</option>
-          {/each}
-        </select>
-      </label>
+      {#if app.brands.length > 1}
+        <Combo
+          testid="brands"
+          label="Brand"
+          items={[...app.brands]}
+          text={(b) => b.label}
+          key={(b) => b.id}
+          hint={(b) => `${b.modelIndices.length}`}
+          selected={app.brand}
+          onPick={(b) => app.selectBrand(b)}
+        />
+      {/if}
 
-      <label class:off={!app.model}>
-        <span>Vehicle</span>
-        <select
-          data-testid="vehicles"
-          disabled={!app.model}
-          value={app.vehicle ? String(app.vehicles.indexOf(app.vehicle)) : ""}
-          onchange={(e) => {
-            const v = app.vehicles[Number(e.currentTarget.value)];
-            if (v) app.selectVehicle(v);
-          }}
-        >
-          <option value="" disabled>{app.vehicles.length} vehicles&hellip;</option>
-          {#each app.vehicles as v, i (i)}
-            <option value={String(i)}>{vehicleLabel(v)}</option>
-          {/each}
-        </select>
-      </label>
+      <Combo
+        testid="models"
+        label="Model"
+        items={app.models}
+        text={(m) => m.name}
+        key={(m) => m.name}
+        hint={(m) => m.prGroups.join(" ")}
+        selected={app.model}
+        onPick={(m) => app.selectModel(m)}
+      />
 
-      <!-- The narrowing controls the original also has. Without a build number
-           every ordered applicability clause is undecidable — the counter in
-           the strip below shows how many. -->
+      <Combo
+        testid="vehicles"
+        label="Vehicle"
+        items={app.vehicles}
+        text={vehicleLabel}
+        key={(v) => vehicleKey(v)}
+        selected={app.vehicle}
+        disabled={!app.model}
+        onPick={(v) => app.selectVehicle(v)}
+      />
+
+      <!-- The narrowing controls the original also has. A build number needs a
+           factory: `resolveDate` compares `factory + number` against the Dates
+           table, so one without the other decides nothing. -->
       <label class:off={!app.vehicle}>
         <span>Factory</span>
         <select
@@ -168,57 +175,48 @@
         />
       </label>
 
-      <label class:off={!app.group}>
-        <span>Assembly</span>
-        <select
-          data-testid="assemblies"
+      <div class="asm">
+        <Combo
+          testid="assemblies"
+          label="Assembly"
+          items={app.visibleAssemblies}
+          text={(a) => a.label ?? a.code}
+          key={(a) => a.code}
+          hint={(a) => `${a.domainLabel ?? ""} ${a.code}`.trim()}
+          muted={(a) => {
+            const av = app.availability.get(a.code);
+            return av !== undefined && av.plates === 0;
+          }}
+          selected={app.visibleAssemblies.find((a) => a.code === app.assembly)}
           disabled={!app.group}
-          value={app.assembly ?? ""}
-          onchange={(e) => app.selectAssembly(e.currentTarget.value)}
-        >
-          <option value="" disabled>{app.visibleAssemblies.length} assemblies&hellip;</option>
-          {#each app.assembliesByDomain as d (d.domain)}
-            <optgroup label={d.label}>
-              {#each d.items as a (a.code)}
-                {@const av = app.availability.get(a.code)}
-                <option value={a.code}>
-                  {a.label ?? a.code} — {a.code}{av && av.plates === 0 && av.unknown > 0
-                    ? " (?)"
-                    : ""}
-                </option>
-              {/each}
-            </optgroup>
-          {/each}
-        </select>
+          onPick={(a) => app.selectAssembly(a.code)}
+        />
         {#if app.hiddenAssemblyCount > 0}
-          <!-- Say what is being hidden. Two thirds of the menu can be empty for
-               a given vehicle, and silently shortening it would look like
-               missing data. -->
+          <!-- Say what is hidden. Two thirds of the menu can be empty for a
+               given vehicle, and silently shortening it looks like missing
+               data. -->
           <label class="inline">
             <input type="checkbox" bind:checked={app.onlyAvailable} />
             hide {app.hiddenAssemblyCount} with no parts
           </label>
         {/if}
-      </label>
+      </div>
 
       <!-- Shown only when there is a choice. Two thirds of assemblies resolve
            to a single plate, which is opened automatically. -->
-      <label class:off={plates.length === 0} class:hidden={plates.length < 2}>
-        <span>Plate</span>
-        <select
-          data-testid="plates"
-          disabled={plates.length === 0}
-          value={plates.find((x) => x.p.plate === app.plate?.plate)?.p.raw ?? ""}
-          onchange={(e) => pickPlate(e.currentTarget.value)}
-        >
-          <option value="" disabled>{plates.length} plates&hellip;</option>
-          {#each plates as x (x.p.raw)}
-            <option value={x.p.raw}>
-              {app.group ? plateLabel(app.group, x.p.plate) : x.p.plate}{x.undecided ? " (?)" : ""}
-            </option>
-          {/each}
-        </select>
-      </label>
+      {#if plates.length > 1}
+        <Combo
+          testid="plates"
+          label="Plate"
+          items={plates}
+          text={(x) => (app.group ? plateLabel(app.group, x.p.plate) : x.p.plate)}
+          key={(x) => x.p.raw}
+          hint={(x) => (x.undecided ? "?" : undefined)}
+          muted={(x) => x.undecided}
+          selected={plates.find((x) => x.p.plate === app.plate?.plate)}
+          onPick={(x) => app.selectPlate(x.p)}
+        />
+      {/if}
     </div>
 
     <div class="chrome">
@@ -253,8 +251,10 @@
     <div class="content">
       {#if !app.plate}
         <p class="hint">
-          {#if !app.model}
-            Choose a model to begin.
+          {#if !app.brand && app.brands.length > 1}
+            Choose a brand to begin.
+          {:else if !app.model}
+            Choose a model.
           {:else if !app.vehicle}
             Choose a vehicle. Applicability is evaluated against it, so nothing is filtered until
             one is picked.
@@ -272,7 +272,7 @@
       {:else}
         <div class="platehead">
           <h2>{app.assemblyLabel ?? app.assembly}</h2>
-          <span class="meta">
+          <span class="meta" data-testid="plate-key">
             {app.group ? plateLabel(app.group, app.plate.plate) : app.plate.plate}
             &middot; {app.plate.key}
             &middot; drawing {app.plate.drawing ?? "—"}
@@ -461,9 +461,6 @@
   .bar label.off {
     opacity: 0.45;
   }
-  .bar label.hidden {
-    display: none;
-  }
   .bar label.inline {
     flex-direction: row;
     align-items: center;
@@ -477,6 +474,11 @@
   }
   .bar label.inline input {
     margin: 0;
+  }
+  .asm {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
   .bar label > span {
     font-size: 9.5px;

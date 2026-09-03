@@ -71,6 +71,47 @@ export class PrModels {
 }
 
 // --------------------------------------------------------------------------
+// Brands
+// --------------------------------------------------------------------------
+
+export interface Brand {
+  /** `"renault"` / `"dacia"` — also the directory holding the logo. */
+  id: string;
+  label: string;
+  /** Indices into the `MOD_` criterion's value list. */
+  modelIndices: number[];
+}
+
+/**
+ * The brands, from `GlobalesG.setListDocUsed`.
+ *
+ * Each is a Java properties file with one key: `modele = 14-11-4-20-...`, a
+ * dash-separated list of **indices into `MOD_`** — the same index space
+ * `ListePRModele` uses. Renault lists 76, Dacia 3 (Solenza, SupeRNova,
+ * Pick-up).
+ *
+ * The original hard-codes the two file names and maps them to the `pr/renault`
+ * and `pr/dacia` directories, which is where the logos live. `ListeDocDacia2`
+ * takes precedence over `ListeDocDacia` when both exist. Motrio is a separate
+ * parts brand handled elsewhere, not a vehicle brand.
+ */
+export const BRAND_SOURCES: readonly { id: string; label: string; files: string[] }[] = [
+  { id: "renault", label: "Renault", files: ["pr/ListeDocRenault"] },
+  { id: "dacia", label: "Dacia", files: ["pr/ListeDocDacia2", "pr/ListeDocDacia"] },
+];
+
+/** Parse `modele = 38-39-40` out of one of those files. */
+export function parseBrandModels(bytes: Uint8Array): number[] {
+  const text = decodeText(bytes);
+  const m = /modele\s*=\s*([0-9-]+)/.exec(text);
+  if (!m || m[1] === undefined) return [];
+  return m[1]
+    .split("-")
+    .map((n) => Number.parseInt(n, 10))
+    .filter((n) => Number.isInteger(n));
+}
+
+// --------------------------------------------------------------------------
 // Assembly and domain names
 // --------------------------------------------------------------------------
 

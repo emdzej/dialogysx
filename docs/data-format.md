@@ -405,6 +405,57 @@ ABS_ / T / Anti-blocage de roues / Anti-blocage de roues ? / Oui / Non
 The operands in §3.1's condition trees are **indices into this value list**, so
 this file is required to _evaluate_ applicability, not merely to label it.
 
+### 3.7.1 Brands — `pr/ListeDoc<Brand>`
+
+The marque is not a field on anything. It is a **list of model indices**, one
+Java properties file per brand, read by `GlobalesG.setListDocUsed`:
+
+```
+pr/ListeDocRenault    modele = 14-11-4-20-26-12-56-30-0-25-9-...   (76 indices)
+pr/ListeDocDacia      modele = 38-39-40
+```
+
+Those numbers index the `MOD_` criterion's value list — the same index space
+`ListePRModele` stores — so Dacia is `38, 39, 40` = **Solenza, SupeRNova,
+Pick-up**. The original hard-codes the two filenames, prefers
+`ListeDocDacia2` over `ListeDocDacia` when both exist, and maps them to the
+`pr/renault` and `pr/dacia` directories, which hold the logos. Motrio is a
+parts brand handled elsewhere, not a vehicle marque.
+
+### 3.7.2 Model, assembly and part names
+
+Nothing in the catalogue stores a name next to the thing it names. Four
+separate sources, four formats:
+
+| What                 | Where                                        | Shape                                                                    |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| Model of a PR group  | `pr/ListePRModele`                           | `count:i16` then `numPR:utf, code:utf, index:i16`, the index into `MOD_` |
+| Assembly and domain  | `langue/<lg>/<lg>.zip:menu`                  | CR-separated, TAB-indented `id,label` tree                               |
+| Part description     | `tarif/d3k/<CC>/<lg>/libellePieces-<lg>.txt` | `ref TAB description`                                                    |
+| Criterion and values | `langue/<lg>/classicvar.utf`                 | §3.7                                                                     |
+
+The `menu` tree is **exactly three levels** — 3 sections, 77 domains, 346
+assemblies — matching the original's three side-by-side lists. `M1010A` is
+"Complete engine" under `M10` "10 Engine" under `M` "Manual". A **plate has no
+name at all**: `Planche.getLabel()` composes `PR/section/domain/rest`, e.g.
+`1256/M/10/0812`, and that is what the original's title bar shows.
+
+Part descriptions are the awkward one. They ship **inside `tarif.zip`**,
+bundled with the price data, on the _country_ discs rather than the
+multi-language catalogue disc — 42 country/language datasets, of which
+`libelles`/`libelles.idx` and `libellePieces-<lg>.txt` are names and
+`tarif`/`tarif.idx`/`CBareme` are prices. Coverage is partial by design, since a
+tariff lists only what that market sells:
+
+| Set                        | Names   | Coverage of the 327,169 references |
+| -------------------------- | ------- | ---------------------------------- |
+| `GB/en`                    | 145,788 | 37.8 %                             |
+| every English set combined | 165,343 | 42.6 %                             |
+
+`libelles` is the same data indexed **by description** (key length 20, collation
+key) for searching parts by name; `libellePieces-<lg>.txt` is the plain
+reference-to-name direction.
+
 ### 3.8 Per-group criteria — `pr/<group>.zip`
 
 165 zips, one per PR group, each holding `ListeNomVarId` (criterion codes in play

@@ -8,6 +8,7 @@
 import {
   CatalogueSession,
   type AssemblyEntry,
+  type Brand,
   type CriteriaVocabulary,
   type FileSource,
   type ModelEntry,
@@ -34,6 +35,15 @@ export class AppState {
    * A model maps to one or more PR groups, and picking a vehicle picks the
    * group with it.
    */
+  /**
+   * Brand comes before model, as in the original.
+   *
+   * A brand is a set of `MOD_` indices read from `pr/ListeDoc<Brand>`: Renault
+   * lists 76 models, Dacia 3. Without it the model list mixes both marques.
+   */
+  brands = $state<readonly Brand[]>([]);
+  brand = $state<Brand | undefined>(undefined);
+
   models = $state<ModelEntry[]>([]);
   model = $state<ModelEntry | undefined>(undefined);
 
@@ -176,12 +186,34 @@ export class AppState {
       this.session = session;
       this.status = { kind: "loading", what: "reading models" };
       this.groups = await session.prGroups();
-      this.models = await session.modelList();
+      this.brands = session.brands;
+      // With one brand there is nothing to choose, so choose it.
+      this.brand = this.brands.length === 1 ? this.brands[0] : undefined;
+      this.models = await session.modelList(this.brand?.id);
       this.status = { kind: "ready", from: label };
       // Nothing is selected yet: a 41,758-plate catalogue should not guess.
     } catch (e) {
       this.status = { kind: "error", message: e instanceof Error ? e.message : String(e) };
     }
+  }
+
+  /** Pick a brand: narrow the model list to its `MOD_` indices. */
+  async selectBrand(b: Brand): Promise<void> {
+    const s = this.session;
+    if (!s) return;
+    this.brand = b;
+    this.model = undefined;
+    this.vehicle = undefined;
+    this.group = undefined;
+    this.assembly = undefined;
+    this.plate = undefined;
+    this.vehicles = [];
+    this.assemblies = [];
+    this.assemblyPlates = [];
+    this.assemblyUnknown = [];
+    this.availability = new Map();
+    this.answers = {};
+    this.models = await s.modelList(b.id);
   }
 
   /** Pick a model: load every vehicle across all its PR groups. */
