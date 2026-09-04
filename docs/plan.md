@@ -89,7 +89,8 @@ packages/
   core       shared types: PR group, type, criterion, plate, part reference
   raf        the storage engine: SortedCobolFile, IndexedRAF, the read() backends
   catalogue  parts domain: envelope, organes, planches, criteria evaluation
-  repair     MR/NT: SPI/D3K XML parse and render model          (not yet built)
+  repair     MR/NT navigation, applicability, document paths     (PDFs done;
+             SPI/D3K XML render model not yet built)
   search     part-number and label search over derived indexes  (not yet built)
   i18n       interface strings + the disc's own language files   (not yet built)
 docs/
@@ -234,21 +235,37 @@ answering an undecided criterion in place rather than only listing it, and the
 `codedSign` variant picker.
 
 **Phase 5 — repair documentation.** Two deliverables, because the source is two
-things (§5 of the format doc):
+things (§5 of the format doc).
 
-- **NT and MR PDFs — 2,584 documents, 1.36 GB. Do these first.** They need no
-  format work: render inline with `pdf.js` and offer "open in your PDF app" or
-  download alongside it, since a native viewer beats an embedded one for
-  printing and for sitting open next to a car. Navigation comes from
-  `indexation/ArboRech-MR-pdf-<family>.xml`, whose `<element>` / `<pdf>` /
-  `<appl>` shape is trivial and already carries applicability. Same treatment
-  for the standalone `Outillage.pdf` and `PR0401.pdf`.
-- **The D3K/SPI XML procedures — 22,967 documents.** Parse
-  SPI/D3K to a render model with `fast-xml-parser`, using `repair.xsl` as the
-  authority on presentation. Resolve `GRAPHICAL-LAYER` image references against
-  the extracted images tree (`import` unpacks the archives, so this is a plain
-  filename lookup), and swap the comma decimal separator before parsing any
-  callout coordinate.
+- **NT and MR PDFs — 2,131 documents in the English set. Done.** Navigation,
+  applicability and paths are in `packages/catalogue/src/repair.ts`, transcribed
+  from `DAOArboRechercheXml` / `ArboRechercheSaxHandler` /
+  `AbstractApplicability` / `FamilyModels` — see §5.0A of the format doc for
+  what each file contributes and why the applicability rule is the *opposite* of
+  the parts side (an unanswerable variable is skipped, not asked).
+  `dialogysx docs` sweeps every index and reports what it could not resolve; the
+  interface has a second tab with a topic list, a document list and a viewer.
+
+  Rendering is the browser's own PDF plugin in an `<iframe>`, with "open in a
+  tab" and "download" beside it, rather than `pdf.js`. A workshop wants the real
+  viewer — an embedded canvas prints badly and cannot be annotated — and the
+  bundle stays free of a 1 MB dependency for something every target browser
+  already does. `pdf.js` becomes worth it only if in-document text search across
+  the corpus is wanted, and note that ~20% of `1-NT` is image-only scans, so
+  that would need OCR before it would work anyway.
+
+  Still to do here: the standalone PDFs outside both systems
+  (`langue/<lg>/outillage/Outillage.pdf`, `PRPer/PR0401.pdf`, DVD-0's help),
+  and a search across document titles rather than per-model.
+
+- **The D3K/SPI XML procedures — 37,695 in the English set.** The *index* side
+  is built and swept (`dialogysx docs --xml`): `DocIndex` reads both flavours,
+  including the three differences that fail silently (§5.0B). What remains is
+  the renderer. Parse SPI/D3K to a render model with `fast-xml-parser`, using
+  `repair.xsl` as the authority on presentation. Resolve `GRAPHICAL-LAYER` image
+  references against the extracted images tree (`import` unpacks the archives,
+  so this is a plain filename lookup), and swap the comma decimal separator
+  before parsing any callout coordinate.
 
 **Phase 6 — local and offline data.** Three sources, all behind the same
 `Reader`, which is why Phase 1 was shaped that way:

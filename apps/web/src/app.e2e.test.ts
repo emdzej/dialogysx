@@ -300,6 +300,69 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await page.close();
   });
 
+  it("offers repair documentation for the identified model", async () => {
+    const page = await openCatalogue();
+    await pick(page, "brands", "Renault");
+    await pick(page, "models", "Master II", MODEL);
+
+    // The documentation is per *family*, so a model alone is enough — no
+    // vehicle needed. Master II is family X70, from `pr/FamilleModeleAll.dat`.
+    await page.getByTestId("tab-docs").click();
+    await page.getByTestId("doc-count").waitFor({ timeout: 60_000 });
+    const count = (await page.getByTestId("doc-count").textContent()) ?? "";
+    expect(count).toMatch(/topics/);
+    expect(count).toMatch(/family X70/);
+
+    const topics = await page.locator('[data-testid="doc-elements"] li').count();
+    expect(topics).toBeGreaterThan(1);
+    const docs = await page.locator('[data-testid="doc-list"] li').count();
+    expect(docs).toBeGreaterThan(0);
+    await page.close();
+  });
+
+  it("filters the documents by name", async () => {
+    const page = await openCatalogue();
+    await pick(page, "brands", "Renault");
+    await pick(page, "models", "Master II", MODEL);
+    await page.getByTestId("tab-docs").click();
+    await page.getByTestId("doc-count").waitFor({ timeout: 60_000 });
+
+    const before = await page.locator('[data-testid="doc-elements"] li').count();
+    await page.getByTestId("doc-query").fill("brake");
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('[data-testid="doc-elements"] li').length < n,
+      before,
+      { timeout: 15_000 },
+    );
+    const after = await page.locator('[data-testid="doc-elements"] li').count();
+    expect(after).toBeLessThan(before);
+    expect(after).toBeGreaterThan(0);
+    await page.close();
+  });
+
+  it("opens a manual in a viewer", async () => {
+    const page = await openCatalogue();
+    await pick(page, "brands", "Renault");
+    await pick(page, "models", "Master II", MODEL);
+    await page.getByTestId("tab-docs").click();
+    await page.getByTestId("doc-count").waitFor({ timeout: 60_000 });
+
+    await page.locator('[data-testid="doc-list"] li button').first().click();
+    const frame = page.getByTestId("doc-frame");
+    await frame.waitFor({ timeout: 30_000 });
+    // The frame has to point at a real PDF in the tree. An empty or HTML src
+    // is how "the document is indexed but not imported" would look.
+    const src = await frame.getAttribute("src");
+    expect(src ?? "").toMatch(/\.pdf$/);
+    // `URL` is the base-URL constant in this file, which shadows the global
+    // class — so join by hand rather than reaching for the constructor.
+    const absolute = src!.startsWith("http") ? src! : `${URL!.replace(/\/$/, "")}${src}`;
+    const res = await page.request.get(absolute);
+    expect(res.status()).toBe(200);
+    expect(res.headers()["content-type"] ?? "").toMatch(/pdf/);
+    await page.close();
+  });
+
   it("reports a tree that is not there instead of failing silently", async () => {
     const page = await browser!.newPage();
     await page.goto(URL!, { waitUntil: "domcontentloaded" });

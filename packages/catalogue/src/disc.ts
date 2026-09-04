@@ -16,13 +16,18 @@ export interface FileSource {
   /** Immediate subdirectory names of a relative path. Used to list languages. */
   listDirs(relativePath: string): Promise<string[]>;
   /**
-   * A URL an `<img>` can load, for the drawings.
+   * A URL the browser can load directly — a drawing in an `<img>`, a manual in
+   * an `<iframe>`.
    *
    * Optional because it is the one thing the backends cannot express
    * identically: HTTP has a real URL, a picked directory has to mint a blob,
    * and Node has neither. Returns `undefined` when the file is absent.
+   *
+   * Named for the path rather than the element: it started as `imageUrl` for
+   * the drawings, and `imageUrl("mrnt/en/d3k/1-MR/MR-305-TWINGO-3.pdf")` reads
+   * like a mistake at every call site.
    */
-  imageUrl?(relativePath: string): Promise<string | undefined>;
+  fileUrl?(relativePath: string): Promise<string | undefined>;
 }
 
 /** A dataset resolved against a source, ready to query. */

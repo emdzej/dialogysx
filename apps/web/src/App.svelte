@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * dialogysx — parts catalogue browser.
+   * dialogysx — parts catalogue and repair documentation.
    *
    * Identification follows the original's order: model, vehicle, then the
    * factory and build number that narrow it further. Everything is a combobox
@@ -12,9 +12,15 @@
    * `Planche.getLabel()` composes a path instead, and the prose name belongs to
    * the assembly. So the heading names the assembly and the plate sits below it
    * as an identifier.
+   *
+   * Two views share the identification bar: parts, and the repair manuals. In
+   * the original those are separate applets over one selected vehicle, and they
+   * stay separate here — the documents are indexed by *family* rather than by
+   * PR group, and their applicability is a different, much simpler grammar.
    */
   import { plateLabel, type VehicleSpec } from "@dialogysx/catalogue";
   import Combo from "./lib/Combo.svelte";
+  import Documents from "./lib/Documents.svelte";
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
   import { HttpTreeSource } from "./lib/http-source";
@@ -39,7 +45,7 @@
     let stale = false;
     let mine: string | undefined;
     (async () => {
-      const next = path && source?.imageUrl ? await source.imageUrl(path) : undefined;
+      const next = path && source?.fileUrl ? await source.fileUrl(path) : undefined;
       if (stale) return revokeImageUrl(next);
       mine = next;
       imageSrc = next;
@@ -240,7 +246,7 @@
       {:else}
         <span class="warn-text">no part names in this tree</span>
       {/if}
-      {#if app.plate}
+      {#if app.plate && app.view === "parts"}
         <span class="right">
           {app.decidedCount} decided &middot;
           <span class:warn-text={app.undecidedCount > 0}>{app.undecidedCount} undecided</span>
@@ -248,6 +254,52 @@
       {/if}
     </div>
 
+    <!-- The tabs sit below the identification bar because identification is
+         shared: both views are about the same vehicle. -->
+    <div class="tabs" role="tablist" aria-label="View">
+      <button
+        type="button"
+        role="tab"
+        data-testid="tab-parts"
+        aria-selected={app.view === "parts"}
+        class:on={app.view === "parts"}
+        onclick={() => app.setView("parts")}>Parts</button
+      >
+      <button
+        type="button"
+        role="tab"
+        data-testid="tab-docs"
+        aria-selected={app.view === "docs"}
+        class:on={app.view === "docs"}
+        disabled={!app.model}
+        onclick={() => app.setView("docs")}
+      >
+        Repair documentation
+        {#if app.docs}<span class="badge">{app.docs.total}</span>{/if}
+      </button>
+    </div>
+
+    {#if app.view === "docs"}
+      <div class="content">
+        {#if !app.model}
+          <p class="hint">Choose a model — the manuals are indexed by vehicle family.</p>
+        {:else}
+          <Documents
+            elements={app.visibleDocElements}
+            documents={app.visibleDocuments}
+            family={app.docs?.family}
+            query={app.docQuery}
+            loading={app.docsLoading}
+            unavailable={app.docsUnavailable}
+            notice={app.docNotice}
+            open={app.openDoc}
+            onQuery={(q) => (app.docQuery = q)}
+            onOpen={(d) => app.showDoc(d)}
+            onClose={() => app.closeDoc()}
+          />
+        {/if}
+      </div>
+    {:else}
     <div class="content">
       {#if !app.plate}
         <p class="hint">
@@ -340,6 +392,7 @@
         </div>
       {/if}
     </div>
+    {/if}
   {/if}
 </main>
 
@@ -576,6 +629,46 @@
     font-size: 0.8rem;
     color: var(--ink-soft);
     background: color-mix(in srgb, var(--red) 5%, transparent);
+  }
+  .tabs {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0 0.9rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .tabs button {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.7rem;
+    border: 1px solid transparent;
+    border-bottom: 0;
+    border-radius: 2px 2px 0 0;
+    margin-bottom: -1px;
+    background: none;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .tabs button:hover:not(:disabled) {
+    color: var(--ink);
+  }
+  .tabs button.on {
+    background: var(--card);
+    border-color: var(--rule);
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .tabs button:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+  .tabs .badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--ink-faint);
   }
   .questions strong {
     color: var(--red);

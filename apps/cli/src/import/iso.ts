@@ -36,7 +36,21 @@ export async function mountIso(isoPath: string): Promise<Mounted> {
         `and pass the mount point instead.`,
     );
   }
-  const { stdout } = await run("hdiutil", ["attach", "-readonly", "-nobrowse", isoPath]);
+  const attach = (extra: string[]) =>
+    run("hdiutil", ["attach", "-readonly", "-nobrowse", ...extra, isoPath]);
+  let stdout: string;
+  try {
+    ({ stdout } = await attach([]));
+  } catch (e) {
+    // "image not recognised" does not always mean a broken image. Two of the
+    // five 4.55 discs end one byte short of a 2048-byte sector boundary — the
+    // signature of an interrupted transfer — and `hdiutil` refuses a file whose
+    // length is not a whole number of sectors, even though the ISO 9660
+    // descriptors and every file extent read back clean. Naming the image class
+    // explicitly skips that check.
+    if (!/not recognised|not recognized/i.test(e instanceof Error ? e.message : String(e))) throw e;
+    ({ stdout } = await attach(["-imagekey", "diskimage-class=CRawDiskImage"]));
+  }
   // Output is TAB-separated columns; the mount point is the last one on the
   // line that has it. Take the last non-empty match so a multi-partition image
   // resolves to its mounted volume rather than a bare /dev entry.

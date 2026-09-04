@@ -66,7 +66,7 @@ export class HttpTreeSource implements FileSource {
    * Over HTTP the drawing is just a URL — no fetch needed, so the browser's own
    * image cache does the work.
    */
-  async imageUrl(relativePath: string): Promise<string | undefined> {
+  async fileUrl(relativePath: string): Promise<string | undefined> {
     return this.url(relativePath);
   }
 

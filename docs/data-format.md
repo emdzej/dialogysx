@@ -546,6 +546,134 @@ So the PDF half is a complete, navigable, applicability-filtered corpus reachabl
 with an XML index and a PDF viewer — much the cheaper of the two to ship, which
 is why the plan does it first.
 
+### 5.0A How the navigation actually resolves
+
+Implemented in `packages/catalogue/src/repair.ts`, transcribed from
+`DAOArboRechercheXml`, `ArboRechercheSaxHandler`, `AbstractApplicability`,
+`UI.isApplicable` and `FamilyModels`. Three lookups, none of them guessable from
+the data alone:
+
+| Step | File | Java |
+| --- | --- | --- |
+| model name → family code | `pr/FamilleModeleAll.dat` | `FamilyModels.init` |
+| family → document tree | `mrnt/<lg>/d3k/indexation/ArboRech-<MR\|NT>[-pdf]-<FAMILY>.xml` | `DAOArboRechercheXml.getArboRecherche` |
+| document → file | `mrnt/<lg>/d3k/1-<MR\|NT>/<numero>.pdf` | `ArboRechercheSaxHandler` line 114 |
+
+`FamilleModeleAll.dat` is a properties file with a **colon** separator and
+**1-based** indices into `classicvar`'s `MOD_` list — `FamilyModels.init` reads
+`valueToModel[parseInt(n) - 1]`, while `ListePRModele` and the brand files index
+the same list from 0. An off-by-one does not throw; it returns the neighbouring
+model, so Clio's manuals would file under Captur. Checked against reality: 75
+families covering 97 models, `X06` → Twingo, `X84` → Mégane II + Scénic II,
+`X65` → Clio II + Clio RS V6, `X61` → Kangoo II. Those are the real Renault
+project codes, which is independent confirmation the indexing is right.
+
+**Applicability here is not the parts grammar.** No operators, no date views, no
+joker tables — flat equality, AND across variables inside an `<appl>`, OR across
+a variable's `<criterion>` values, OR across `<appl>` blocks, and no `<appl>` at
+all means "every vehicle" (`UI.isApplicable` returns `true` when
+`hasApplicability()` is false). The load-bearing difference from the parts side:
+
+```java
+String valeurContext = vehicule.getValueInContext(varApplicabilite.getName());
+if (!valeurContext.equals("")) { ... }        // unknown -> variable ignored
+```
+
+A variable the vehicle cannot answer is **skipped**, not turned into a question.
+Defaulting the other way hides exactly the general manuals, which are the ones
+with no restrictions.
+
+**The `$`-prefixed variables are never answerable during navigation, by design.**
+Measured over the 114 English PDF indexes of the 4.55 set — 87,152 topics,
+195,368 document references, 2,131 distinct documents, 904,506 applicability
+blocks:
+
+| Variable | Clauses | Answerable from the vehicle? |
+| --- | --- | --- |
+| `MOT3` | 680,323 | yes — engine code |
+| `BVI3` | 494,448 | yes — gearbox code |
+| `$TYC` | 344,531 | **no** |
+| `MOTI` | 57,176 | yes — engine index |
+| `$PHD` | 56,520 | **no** |
+| `BVII` | 5,114 | yes — gearbox index |
+
+`DialogysVariable.setVariableSecondaire` marks the `$` ones, and
+`VehiculeContext` has no entry for them, so the original's own navigation skips
+them too. They are asked as a dialog *later*, when a document is opened, by
+`AskVariablePane.askForVariableByInternalApplicability`, and only for that
+document's internal applicability. A document restricted solely by `$TYC` is
+therefore offered for every vehicle — in the original as much as here.
+
+17.1% of references carry no applicability at all. Filtering a Master II
+(`TYP_=ED01`, `MOT3=G9U`, `BVI3=PF6`) against family `X70` takes its documents
+from 154 to 121: the `MOT3=S8U|S9W` manuals (`MR-323-MASTER-*`) drop out, the
+rest stay.
+
+### 5.0B The two index flavours differ in ways that fail silently
+
+`ArboRech-*-pdf-*.xml` and `ArboRech-*-*.xml` are the same schema in outline and
+not in detail. Three differences, each of which produces a plausible-looking
+empty result rather than an error:
+
+1. The PDF flavour names documents `<pdf numero titre>`; the chapter flavour
+   uses **`<UI chapitre chemin titre>`** — upper case. A case-sensitive match
+   reports 27,924 topics containing zero documents, which reads as "no
+   documentation for this vehicle".
+2. Only the PDF flavour has a `numero`. A procedure is addressed by `chemin`, a
+   `dir/file` pair under `chapitres/` — and `new D3KXML(chemin)` throws unless
+   it splits into exactly two parts.
+3. The chapter flavour nests documents under `<operation id libelle>`; the PDF
+   flavour has no such layer.
+
+Also: one `chapitre` code covers dozens of procedures, so deduplicating on the
+id collapses 37,695 procedures into their few hundred chapter codes.
+
+**Empty is not broken.** 41 of the 161 English chapter indexes are 49 bytes —
+`<?xml version="1.0" encoding="UTF-8"?><arborech/>`. A sweep has to say which
+of the two it found, or it reports a parser fault about files with nothing in
+them. `dialogysx docs` distinguishes them.
+
+The `ORGANE` pseudo-family is a fourth source the original merges into every
+vehicle's tree (`getAllElementsArborech(family, useMR, useNT, useOrgane, ...)`),
+holding the engine and gearbox documentation. Two notes: the file on disc is
+`ArboRech-NT-organe.xml`, **lower case**, while the code asks for `ORGANE` — it
+only resolves on a case-insensitive filesystem, i.e. the Windows it shipped for.
+And `AbstractExpertD3K` assigns `arboRechercheOrganeNTPDF` from
+`getArboRechercheMRPdfByVehiculeType` — the MR getter, twice — so
+`ArboRech-NT-pdf-ORGANE.xml` is never loaded by the original at all. Moot on
+this data: only the chapter-flavour `organe` index ships.
+
+### 5.0C Census of the English 4.55 set
+
+Five discs, `mrnt/` containing only `en`:
+
+| Disc | Contents |
+| --- | --- |
+| DVD-1 | catalogue: `pr/` (160 groups), `langue/` (22 languages), drawings, dates |
+| DVD-2 | 24,732 chapter XML + 720 `NTI-EN` PDFs, 1,879 chapter directories |
+| DVD-3 | 15,322 chapter XML, 1,418 directories, 2 illustration archives |
+| DVD-4 | 5 illustration archives only |
+| DVD-5 | **1,152 `1-MR` manuals + 978 `1-NT` notes** + 361 `indexation/` files |
+
+Illustrations total 146,121 files, 6.39 GB uncompressed, across eight archives
+on three discs — and **three of them are named `images_1.zip`**, so the
+extract-don't-copy rule matters more here than on the Russian set.
+
+PDF text layers, sampled ~40 per tree: `1-MR` 42/42 carry text, `NTI-EN` 40/40,
+`1-NT` **32/41** — roughly a fifth of the technical notes are image-only scans
+and would need OCR to be searchable. (Three files sampled by hand suggested all
+of `1-NT` was scans. It is not; sample before generalising.)
+
+One data fault: `ArboRech-MR-pdf-X65.xml` references `MR432X6517B050`, and only
+`MR432X6517B000.pdf` ships — 1 of 2,131.
+
+Two of the five ISOs (`DVD-1`, `DVD-4`) end one byte short of a 2048-byte sector
+boundary, the signature of an interrupted transfer. `hdiutil attach` refuses a
+file whose length is not a whole number of sectors; `-imagekey
+diskimage-class=CRawDiskImage` skips that check and both mount clean, with every
+file extent readable. `apps/cli/src/import/iso.ts` falls back to it
+automatically.
+
 Standalone PDFs exist outside both systems too: `PRPer/PR0401.pdf`,
 `langue/<lg>/outillage/Outillage.pdf`, and DVD-0's help documents.
 

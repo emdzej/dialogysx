@@ -18,6 +18,17 @@ import { Disc, type FileSource } from "./disc.js";
 import { Envelope, parseEnvelopeRecord } from "./envelope.js";
 import { PartSearch } from "./part-search.js";
 import {
+  DocIndex,
+  FamilyModels,
+  docIndexPath,
+  docPdfPath,
+  documentApplies,
+  type DocContext,
+  type DocElement,
+  type DocKind,
+  type DocRef,
+} from "./repair.js";
+import {
   drawingPath,
   evaluateOrgane,
   organeKey,
@@ -169,6 +180,8 @@ export class CatalogueSession {
   private vocabulary?: CriteriaVocabulary;
   private models?: PrModels;
   private menu?: Menu;
+  private families?: FamilyModels;
+  private readonly docIndexes = new Map<string, DocIndex | null>();
   private partNames?: PartNames;
   /** Country whose part descriptions were loaded, if any. */
   partNameCountry?: string;
@@ -221,6 +234,11 @@ export class CatalogueSession {
     if (menuBytes) s.menu = Menu.parse(menuBytes);
     await s.loadPartNames(opts.country);
     await s.loadBrands();
+    // Documentation is optional too: a tree imported without `repair-pdf` has
+    // no `indexation/`, and the interface then offers no documents rather than
+    // reporting a broken tree.
+    const familyBytes = await source.readAll("pr/FamilleModeleAll.dat");
+    if (familyBytes) s.families = FamilyModels.parse(familyBytes, s.vocabulary);
     return s;
   }
 
@@ -266,6 +284,85 @@ export class CatalogueSession {
         return;
       }
     }
+  }
+
+  /** Model-to-family map for the documentation indexes, when present. */
+  get familyModels(): FamilyModels | undefined {
+    return this.families;
+  }
+
+  /**
+   * The document families for a model, and the documents that apply.
+   *
+   * Both kinds are offered: `MR` repair methods and `NT` technical notes, from
+   * the `-pdf` indexes. The XML (`chapitres`) indexes exist under the same
+   * naming without `-pdf` and parse the same way — see `docIndexPath` — but
+   * rendering a D3K procedure is a different job from opening a PDF, so this
+   * stops at the PDFs.
+   */
+  async documentsFor(
+    modelName: string,
+    spec?: VehicleSpec,
+  ): Promise<{ family: string; elements: DocElement[]; total: number } | undefined> {
+    const family = this.families?.familyOf(modelName);
+    if (family === undefined) return undefined;
+
+    const merged = new Map<number, DocElement>();
+    for (const kind of ["MR", "NT"] as DocKind[]) {
+      const index = await this.docIndex(kind, family);
+      if (!index) continue;
+      for (const el of index.elements) {
+        const into = merged.get(el.id) ?? { id: el.id, label: el.label, docs: [] };
+        // An element appears in both indexes and a document can be listed under
+        // it more than once. The key includes the kind: an MR and an NT that
+        // happen to share a number are different documents.
+        const seen = new Set(into.docs.map((d) => `${d.kind}/${d.numero}`));
+        for (const d of el.docs) {
+          if (seen.has(`${d.kind}/${d.numero}`)) continue;
+          if (spec && !documentApplies(d, this.docContextFor(spec))) continue;
+          into.docs.push(d);
+          seen.add(`${d.kind}/${d.numero}`);
+        }
+        if (into.label.length === 0 && el.label.length > 0) into.label = el.label;
+        if (into.docs.length > 0) merged.set(el.id, into);
+      }
+    }
+    const elements = [...merged.values()].sort(
+      (a, b) => a.label.localeCompare(b.label) || a.id - b.id,
+    );
+    const total = elements.reduce((n, el) => n + el.docs.length, 0);
+    return { family, elements, total };
+  }
+
+  /** Parsed index files, cached: each is a few hundred KB of XML. */
+  private async docIndex(kind: DocKind, family: string): Promise<DocIndex | undefined> {
+    const key = `${kind}/${family}`;
+    const hit = this.docIndexes.get(key);
+    if (hit !== undefined) return hit ?? undefined;
+    const bytes = await this.source.readAll(docIndexPath(this.language, kind, family));
+    const parsed = bytes ? DocIndex.parse(bytes, kind, family) : null;
+    this.docIndexes.set(key, parsed);
+    return parsed ?? undefined;
+  }
+
+  /**
+   * What a vehicle answers for a documentation variable.
+   *
+   * The documentation prefixes its secondary variables with `$` (`$TYC`), which
+   * the catalogue side does not, so both spellings are tried. Anything the
+   * vehicle has not pinned down returns `undefined`, which `documentApplies`
+   * reads as "no constraint" rather than "no match".
+   */
+  private docContextFor(spec: VehicleSpec): DocContext {
+    return (variable: string) => {
+      const bare = variable.startsWith("$") ? variable.slice(1) : variable;
+      return spec.criteria[variable] ?? spec.criteria[bare] ?? undefined;
+    };
+  }
+
+  /** Where a document's PDF lives, relative to the tree. */
+  documentPath(doc: DocRef): string {
+    return docPdfPath(this.language, doc.kind, doc.numero);
   }
 
   get names(): PartNames | undefined {

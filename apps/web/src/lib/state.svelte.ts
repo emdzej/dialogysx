@@ -13,6 +13,8 @@ import {
   type FileSource,
   type ModelEntry,
   type OrganePlate,
+  type DocElement,
+  type DocRef,
   type ResolvedPlate,
   type VehicleSpec,
 } from "@dialogysx/catalogue";
@@ -76,6 +78,33 @@ export class AppState {
    */
   hoveredRepere = $state<number | undefined>(undefined);
   pinnedRepere = $state<number | undefined>(undefined);
+
+  /**
+   * Which half of the application is showing.
+   *
+   * Parts and documentation share the identification bar and nothing else: the
+   * original is two separate applets (`MRouNTApplet`, the PR view) over one
+   * vehicle. Tabs rather than routes because there is no deep link to keep.
+   */
+  view = $state<"parts" | "docs">("parts");
+
+  /** Documentation for the selected model, once asked for. */
+  docs = $state<{ family: string; elements: DocElement[]; total: number } | undefined>(undefined);
+  docsLoading = $state(false);
+  /** Set when the model has no family in `FamilleModeleAll.dat`. */
+  docsUnavailable = $state(false);
+  /** Free-text filter over element labels and document titles. */
+  docQuery = $state("");
+  /** The open document and the URL its viewer loads. */
+  openDoc = $state<{ doc: DocRef; url: string } | undefined>(undefined);
+  /**
+   * A non-fatal complaint, shown inside the panel.
+   *
+   * Separate from `status`, which replaces the whole interface with a splash:
+   * one indexed document being absent from the tree is not a reason to take the
+   * catalogue away.
+   */
+  docNotice = $state<string | undefined>(undefined);
 
   /** Criterion answers the user has supplied on top of the envelope row. */
   answers = $state<Record<string, string>>({});
@@ -468,6 +497,92 @@ export class AppState {
     const resolved = await s.plate(this.group, p.plate, v, p.drawing);
     if (this.stale(gen)) return;
     this.plate = resolved;
+  }
+
+  /**
+   * Switch view, loading the documentation the first time it is asked for.
+   *
+   * Loaded lazily because it is two more XML files per model — a few hundred KB
+   * — and someone who only wants a part number should not pay for them.
+   */
+  async setView(view: "parts" | "docs"): Promise<void> {
+    this.view = view;
+    if (view === "docs" && !this.docs && !this.docsLoading) await this.loadDocs();
+  }
+
+  async loadDocs(): Promise<void> {
+    const s = this.session;
+    const model = this.model?.name;
+    if (!s || !model) return;
+    const gen = this.claim();
+    this.docsLoading = true;
+    this.docsUnavailable = false;
+    try {
+      // Filtered by the vehicle when one is chosen, unfiltered otherwise: the
+      // documents are per *family*, so the model alone already answers most of
+      // it, and refusing to list anything without a vehicle would hide the
+      // general manuals.
+      const found = await s.documentsFor(model, this.effectiveVehicle);
+      if (this.stale(gen)) return;
+      this.docs = found;
+      this.docsUnavailable = found === undefined;
+    } finally {
+      if (!this.stale(gen)) this.docsLoading = false;
+    }
+  }
+
+  /** Elements matching the filter, with their matching documents. */
+  get visibleDocElements(): DocElement[] {
+    const all = this.docs?.elements ?? [];
+    const needle = this.docQuery.trim().toLowerCase();
+    if (needle.length === 0) return all;
+    const out: DocElement[] = [];
+    for (const el of all) {
+      if (el.label.toLowerCase().includes(needle)) {
+        out.push(el);
+        continue;
+      }
+      // An element whose own name does not match can still hold a document
+      // that does; showing it with only the matching documents is more useful
+      // than dropping it.
+      const docs = el.docs.filter(
+        (d) =>
+          d.title.toLowerCase().includes(needle) || d.numero.toLowerCase().includes(needle),
+      );
+      if (docs.length > 0) out.push({ ...el, docs });
+    }
+    return out;
+  }
+
+  /** Distinct documents across the visible elements, for a flat listing. */
+  get visibleDocuments(): DocRef[] {
+    const seen = new Map<string, DocRef>();
+    for (const el of this.visibleDocElements) {
+      for (const d of el.docs) {
+        const key = `${d.kind}/${d.numero}`;
+        if (!seen.has(key)) seen.set(key, d);
+      }
+    }
+    return [...seen.values()];
+  }
+
+  async showDoc(doc: DocRef): Promise<void> {
+    const s = this.session;
+    const source = s?.source;
+    if (!s || !source?.fileUrl) return;
+    const gen = this.claim();
+    const path = s.documentPath(doc);
+    const url = await source.fileUrl(path);
+    if (this.stale(gen)) return;
+    // No URL means the index names a document this tree does not carry — one
+    // of 2,131 in the English set, plus everything from a disc left out of the
+    // import. Say which file is missing rather than opening a blank frame.
+    this.openDoc = url ? { doc, url } : undefined;
+    this.docNotice = url ? undefined : `${path} — indexed, but not in this tree`;
+  }
+
+  closeDoc(): void {
+    this.openDoc = undefined;
   }
 
   clearAnswer(code: string): void {

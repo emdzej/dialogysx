@@ -59,7 +59,7 @@ export class LocalDirectorySource implements FileSource {
    * Blob URLs are revoked by `revokeImageUrl` once the `<img>` has swapped;
    * leaking one per drawing would pin every image ever viewed in memory.
    */
-  async imageUrl(relativePath: string): Promise<string | undefined> {
+  async fileUrl(relativePath: string): Promise<string | undefined> {
     const file = await this.resolve(relativePath);
     return file === undefined ? undefined : URL.createObjectURL(file);
   }
@@ -80,7 +80,7 @@ export class LocalDirectorySource implements FileSource {
   }
 }
 
-/** Release a blob URL made by `LocalDirectorySource.imageUrl`. */
+/** Release a blob URL made by `LocalDirectorySource.fileUrl`. */
 export function revokeImageUrl(url: string | undefined): void {
   if (url?.startsWith("blob:")) URL.revokeObjectURL(url);
 }

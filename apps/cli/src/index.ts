@@ -24,6 +24,7 @@ import {
 } from "@dialogysx/catalogue";
 import { decodeText, encodeKey } from "@dialogysx/raf";
 import { importCommand } from "./import/command.js";
+import { docsCommand } from "./docs.js";
 import { NodeDirectorySource } from "./node-source.js";
 import { organesCommand } from "./organes.js";
 import { platesCommand } from "./plates.js";
@@ -38,6 +39,7 @@ const program = new Command()
 program.addCommand(importCommand());
 program.addCommand(platesCommand());
 program.addCommand(organesCommand());
+program.addCommand(docsCommand());
 
 program
   .command("datasets")
