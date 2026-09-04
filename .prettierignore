@@ -1,0 +1,13 @@
+# Generated, and rewritten by pnpm on every install — formatting it produces
+# churn that comes straight back.
+pnpm-lock.yaml
+
+# Build output.
+dist/
+.turbo/
+*.tsbuildinfo
+
+# The catalogue data. Not ours, not committed, and very large.
+data/
+re/extract/
+re/decompiled/
