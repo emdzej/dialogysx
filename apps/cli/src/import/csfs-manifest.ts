@@ -65,13 +65,20 @@ export async function writeCsfsManifest(
     builtAt: input.builtAt,
     archives: input.archives ? [...input.archives] : undefined,
     /*
-     * Neither manifest belongs in the file list.
+     * Only csfs's own manifest is excluded, and only because it cannot list
+     * itself: its size would depend on its contents, which does not settle.
+     * It is fetched by name anyway, never through the file system.
      *
-     * csfs's would be describing itself, and it is fetched by name before any
-     * of this is set up. dialogysx's is read the same way. Listing them would
-     * also make the manifest's own size depend on itself, which cannot settle.
+     * `manifest.json` **is** listed, and leaving it out was a real bug. It
+     * looks like peer metadata rather than data, but when csfs is the file
+     * system every read goes through this map — so an unlisted file is simply
+     * absent. dialogysx reads `manifest.json` to find its archive mounts and
+     * its languages, and both silently became empty: no request is even made,
+     * because a manifest miss answers null without asking the host. The
+     * catalogue then fell back to part codes instead of model names, which
+     * looks like a data problem and is not.
      */
-    filter: (path) => path !== `/${MANIFEST_FILE}` && path !== "/manifest.json",
+    filter: (path) => path !== `/${MANIFEST_FILE}`,
     onProgress: input.onProgress ? (found) => input.onProgress!(found) : undefined,
   });
 

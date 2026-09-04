@@ -73,15 +73,21 @@ export class CsFileSource implements FileSource {
   /**
    * A URL for an `<img>` or an `<iframe>`.
    *
-   * Always a blob, even when the backend could give a real URL. That is a
-   * deliberate simplification here: csfs's `directUrl` exists on the HTTP
-   * backend only, and mixing the two would mean the caller sometimes has a URL
-   * to revoke and sometimes does not. `revokeImageUrl` already tests for
-   * `blob:`, so handing it one every time is safe and uniform — at the cost of
-   * fetching an image that the browser could otherwise have cached itself.
+   * A real URL when the backend can give one, a blob otherwise — and the
+   * difference matters for a manual rather than a drawing. A blob has to be
+   * fully downloaded before it can be shown, so a 40 MB PDF cannot render page
+   * one until all of it has arrived, and the browser cannot cache it between
+   * visits. A real URL lets the built-in PDF viewer range-request.
+   *
+   * csfs answers null for anything inside an archive, where no URL addresses
+   * the bytes, so the blob path still covers every illustration. Mixing the
+   * two is safe because `revokeImageUrl` tests for `blob:` before revoking.
    */
   async fileUrl(relativePath: string): Promise<string | undefined> {
-    const file = await this.fs.file(`/${relativePath}`);
+    const path = `/${relativePath}`;
+    const direct = await this.fs.directUrl?.(path);
+    if (direct) return direct;
+    const file = await this.fs.file(path);
     if (!file) return undefined;
     const bytes = await file.bytes();
     return URL.createObjectURL(
