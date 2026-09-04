@@ -91,4 +91,23 @@ function dataTree(): Plugin {
 
 export default defineConfig({
   plugins: [svelte(), dataTree()],
+  server: {
+    watch: {
+      /**
+       * Never watch the data tree.
+       *
+       * `dialogysx import` is documented to write `<repo>/data`, so the tree
+       * sits inside the project root — 228,515 files and 15 GB for the full
+       * English 4.55 set. `dataTree()` reads it from disk per request, so
+       * nothing here needs to know when it changes, and there is no reason to
+       * spend descriptors and startup work indexing it.
+       *
+       * A precaution, not a fix for anything observed: Vite starts in under a
+       * second with the full tree in place. I first added this believing it
+       * explained a dev server that never bound its port; that turned out to be
+       * the process being killed from outside.
+       */
+      ignored: ["**/data/**"],
+    },
+  },
 });
