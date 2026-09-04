@@ -21,6 +21,7 @@
   import { plateLabel, type VehicleSpec } from "@dialogysx/catalogue";
   import Combo from "./lib/Combo.svelte";
   import About from "./lib/About.svelte";
+  import Assemblies from "./lib/Assemblies.svelte";
   import Documents from "./lib/Documents.svelte";
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
@@ -247,6 +248,15 @@
     onReopenFolder={() => reopenFolder()}
     onForgetFolder={() => forgetFolder()}
     onImport={isSupported() ? () => (importOpen = true) : undefined}
+    languages={app.languages}
+    language={app.language}
+    partNameCountry={app.session?.partNameCountry}
+    onLanguage={(code) => {
+      // Reopening is what actually changes the language: the vocabulary, the
+      // menu and the part names are all read at open time.
+      void app.reopen(code);
+      saveSettings({ source: saved, language: code });
+    }}
     onClose={() => (settingsOpen = false)}
   />
 {/if}
@@ -401,38 +411,6 @@
         />
       </label>
 
-      <Combo
-          testid="assemblies"
-          label="Assembly"
-          items={app.visibleAssemblies}
-          text={(a) => a.label ?? a.code}
-          key={(a) => a.code}
-          hint={(a) => `${a.domainLabel ?? ""} ${a.code}`.trim()}
-          muted={(a) => {
-            const av = app.availability.get(a.code);
-            return av !== undefined && av.plates === 0;
-          }}
-          selected={app.visibleAssemblies.find((a) => a.code === app.assembly)}
-          disabled={!app.group}
-          onPick={(a) => app.selectAssembly(a.code)}
-        />
-
-      {#if app.hiddenAssemblyCount > 0}
-        <!--
-          Say what is hidden. Two thirds of the menu can be empty for a given
-          vehicle, and silently shortening it looks like missing data.
-
-          A sibling of the comboboxes, not a child of the Assembly one. Stacked
-          underneath it the checkbox became part of that column's height, and
-          `align-items: flex-end` then aligned the *checkbox* with the other
-          inputs' baseline — lifting the Assembly field a row above its
-          neighbours. The controls line up; the note sits beside them.
-        -->
-        <label class="inline">
-          <input type="checkbox" bind:checked={app.onlyAvailable} />
-          hide {app.hiddenAssemblyCount} with no parts
-        </label>
-      {/if}
 
       <!-- Shown only when there is a choice. Two thirds of assemblies resolve
            to a single plate, which is opened automatically. -->
@@ -451,34 +429,6 @@
       {/if}
     </div>
 
-    <div class="chrome">
-      <span class="src">{app.status.from}</span>
-      {#if app.languages.length > 1}
-        <select
-          class="lang"
-          aria-label="Language"
-          value={app.language}
-          onchange={(e) => app.reopen((e.currentTarget as HTMLSelectElement).value)}
-        >
-          {#each app.languages as l (l)}
-            <option value={l}>{l}</option>
-          {/each}
-        </select>
-      {:else}
-        <span>language {app.language}</span>
-      {/if}
-      {#if app.session?.partNameCountry}
-        <span>part names {app.session.partNameCountry}</span>
-      {:else}
-        <span class="warn-text">no part names in this tree</span>
-      {/if}
-      {#if app.plate && app.view === "parts"}
-        <span class="right">
-          {app.decidedCount} decided &middot;
-          <span class:warn-text={app.undecidedCount > 0}>{app.undecidedCount} undecided</span>
-        </span>
-      {/if}
-    </div>
 
     <!-- The tabs sit below the identification bar because identification is
          shared: both views are about the same vehicle. -->
@@ -527,6 +477,23 @@
       </div>
     {:else}
     <div class="content">
+      <!--
+        The assembly panel is outside the plate conditional on purpose: it is
+        how a plate gets chosen, so it has to be there before there is one.
+      -->
+      <div class="workspace">
+        <Assemblies
+          items={app.visibleAssemblies}
+          selected={app.assembly}
+          hiddenCount={app.hiddenAssemblyCount}
+          onlyAvailable={app.onlyAvailable}
+          availability={app.availability}
+          disabled={!app.vehicle}
+          onPick={(code) => app.selectAssembly(code)}
+          onToggleAvailable={(v) => (app.onlyAvailable = v)}
+        />
+
+        <div class="workmain">
       {#if !app.plate}
         <p class="hint">
           {#if !app.brand && app.brands.length > 1}
@@ -537,7 +504,7 @@
             Choose a vehicle. Applicability is evaluated against it, so nothing is filtered until
             one is picked.
           {:else if !app.assembly}
-            Choose an assembly — engine, bodywork, interior and so on.
+            Choose an assembly from the list — engine, bodywork, interior and so on.
           {:else if plates.length === 0}
             <strong>Nothing on this assembly fits this vehicle.</strong> Its plates apply to other
             variants of the model, which is normal: for this vehicle
@@ -555,6 +522,14 @@
             &middot; {app.plate.key}
             &middot; drawing {app.plate.drawing ?? "—"}
             &middot; {app.plate.reperes.length} callouts
+            <!-- The honest measure of how well the vehicle is identified: it
+                 falls as the factory, build number and criteria are supplied.
+                 Here rather than in a status bar because it is about this
+                 plate. -->
+            &middot; {app.decidedCount} decided
+            &middot; <span class:warn-text={app.undecidedCount > 0}
+              >{app.undecidedCount} undecided</span
+            >
           </span>
         </div>
 
@@ -617,6 +592,8 @@
           </div>
         </div>
       {/if}
+        </div>
+      </div>
     </div>
     {/if}
   {/if}
@@ -824,22 +801,6 @@
   .bar label.off {
     opacity: 0.45;
   }
-  .bar label.inline {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.3rem;
-    /* Sits on the inputs' baseline, so it needs the same bottom padding they
-       have rather than a top nudge. */
-    padding-bottom: 0.25rem;
-    font-size: 0.7rem;
-    color: var(--ink-faint);
-    text-transform: none;
-    letter-spacing: 0;
-    font-weight: 400;
-  }
-  .bar label.inline input {
-    margin: 0;
-  }
   .bar label > span {
     font-size: 9.5px;
     font-weight: 700;
@@ -868,28 +829,8 @@
     width: 8rem;
   }
 
-  .chrome {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    padding: 0.2rem 1rem;
-    font-size: 0.72rem;
-    color: var(--ink-faint);
-    background: var(--rule-soft);
-    border-bottom: 1px solid var(--rule);
-  }
-  .src {
-    font-family: var(--mono);
-  }
-  .chrome .right {
-    margin-left: auto;
-  }
   .warn-text {
     color: var(--red);
-  }
-  select.lang {
-    font-size: 0.72rem;
-    padding: 0 0.2rem;
   }
 
   .splash {
@@ -1008,6 +949,25 @@
     border: 1px solid var(--rule);
     border-radius: 2px;
     background: var(--card);
+  }
+  /*
+   * Assembly panel, then everything else. The panel is a fixed column because
+   * it is a menu: a proportional one would grow with the window and take space
+   * from the drawing, which is the thing you came to look at.
+   */
+  .workspace {
+    display: grid;
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+  }
+  .workmain {
+    min-width: 0;
+  }
+  @media (max-width: 62rem) {
+    .workspace {
+      grid-template-columns: 1fr;
+    }
   }
   .split {
     display: grid;

@@ -48,6 +48,17 @@
   let error = $state<string | undefined>(undefined);
   let busy = $state(false);
   let chosen = $state<Set<string>>(new Set(DEFAULT_COMPONENTS));
+  /**
+   * Languages to keep, or empty for all.
+   *
+   * Not known until a disc is scanned: `identify` reports what each one
+   * carries — 22 under `langue/` on the catalogue disc, one under `mrnt/` on a
+   * repair disc. So the choice is offered at review time, when there is
+   * something real to choose from, rather than as a guess up front.
+   */
+  let langs = $state<Set<string>>(new Set());
+  /** Everything seen so far, so the choice persists across discs. */
+  let seenLangs = $state<string[]>([]);
 
   const gb = (n: number) => `${(n / 1e9).toFixed(2)} GB`;
   const num = (n: number) => n.toLocaleString();
@@ -124,6 +135,7 @@
         target: target!,
         state: carried,
         components: [...chosen],
+        ...(langs.size > 0 ? { languages: [...langs] } : {}),
       });
       if (res.kind === "unrecognised") {
         error =
@@ -135,6 +147,15 @@
       if (res.kind === "scanned") {
         disc = res.disc;
         plan = res.plan;
+        const codes = res.disc.languages.map((l) => l.code);
+        seenLangs = [...new Set([...seenLangs, ...codes])].sort();
+        // Default to the browser's language when the disc has it, else leave
+        // everything selected: importing 22 languages by accident is 0.77 GB
+        // of vocabulary nobody asked for, and importing none is worse.
+        if (langs.size === 0 && codes.length > 0) {
+          const preferred = navigator.language.slice(0, 2).toLowerCase();
+          langs = new Set(codes.includes(preferred) ? [preferred] : codes);
+        }
         stage = "review";
       }
     } catch (e) {
@@ -155,6 +176,7 @@
         target: target!,
         state: carried,
         components: [...chosen],
+        ...(langs.size > 0 ? { languages: [...langs] } : {}),
       });
       if (res.kind === "done") {
         carried = res.state;
@@ -185,6 +207,38 @@
     }
   }
 
+  /** Re-plan with the current selection, so the review reflects it. */
+  async function rescan(): Promise<void> {
+    if (!source || !target) return;
+    busy = true;
+    try {
+      const res = await send({
+        kind: "scan",
+        source,
+        target,
+        state: carried,
+        components: [...chosen],
+        ...(langs.size > 0 ? { languages: [...langs] } : {}),
+      });
+      if (res.kind === "scanned") plan = res.plan;
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
+    } finally {
+      busy = false;
+    }
+  }
+
+  function toggleLang(code: string): void {
+    const next = new Set(langs);
+    if (next.has(code)) next.delete(code);
+    else next.add(code);
+    // Never end up with none selected: that would import no vocabulary at all
+    // and every criterion would render as a bare code.
+    if (next.size === 0) return;
+    langs = next;
+    void rescan();
+  }
+
   function toggle(id: string): void {
     const next = new Set(chosen);
     if (next.has(id)) next.delete(id);
@@ -193,6 +247,7 @@
     // and so does this.
     for (const c of COMPONENTS) if (c.required) next.add(c.id);
     chosen = next;
+    void rescan();
   }
 
   const totalWritten = $derived(
@@ -318,8 +373,25 @@
           {/each}
         </ul>
 
+        {#if seenLangs.length > 1}
+          <div class="langs" data-testid="import-languages">
+            <span class="llabel">Languages</span>
+            {#each seenLangs as code (code)}
+              <label>
+                <input
+                  type="checkbox"
+                  checked={langs.has(code)}
+                  disabled={busy}
+                  onchange={() => toggleLang(code)}
+                />
+                {code}
+              </label>
+            {/each}
+          </div>
+        {/if}
+
         <div class="row">
-          <button class="primary" onclick={runDisc} data-testid="write-disc">
+          <button class="primary" onclick={runDisc} data-testid="write-disc" disabled={busy}>
             Write {num(plan.files)} files
           </button>
           <button onclick={() => (stage = "disc")}>Choose a different disc</button>
@@ -505,6 +577,27 @@
     color: var(--red);
   }
   .resume {
+    color: var(--ink-faint);
+  }
+  .langs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.2rem 0.6rem;
+    margin: 4px 0 10px;
+    font-size: 11.5px;
+  }
+  .langs label {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-family: var(--mono);
+  }
+  .llabel {
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
     color: var(--ink-faint);
   }
   .components {

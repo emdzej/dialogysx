@@ -129,6 +129,14 @@ export async function planDisc(
     // manifest rather than into the tree, where one would have to win.
     if (isVersionStamp(dest)) continue;
 
+    // One language filter for both trees: `mrnt/<lg>/...` and `langue/<lg>/...`.
+    // Without this the option would be cosmetic — the plan would report a
+    // selection and then import all 22 languages anyway.
+    if (languages) {
+      const m = /^(?:mrnt|langue)\/([^/]+)\//.exec(dest);
+      if (m && !languages.includes(m[1]!)) continue;
+    }
+
     const component: ComponentSpec | undefined = componentFor(dest);
     if (!component) {
       unclaimed.push({ to: dest, bytes: file.size });

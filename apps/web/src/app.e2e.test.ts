@@ -88,14 +88,32 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await row.first().click();
   }
 
+  /**
+   * Choose an assembly from the panel.
+   *
+   * A list with a search box rather than a combobox: the menu is 346 entries in
+   * three levels, and the repair documents never see the assembly, so it
+   * belongs to the parts view rather than to identification.
+   */
+  async function pickAssembly(page: Page, name: string) {
+    await page.getByTestId("assembly-search").fill(name);
+    await page
+      .locator('[data-testid="assembly-list"] button')
+      .filter({ hasText: name })
+      .first()
+      .click();
+  }
+
   /** Walk brand, model and vehicle to the reported case. */
   async function identify(page: Page) {
     await pick(page, "brands", "Renault");
     await pick(page, "models", "Master II", MODEL);
     await pick(page, "vehicles", "ED01", "G9U-632");
-    // Availability is 154 assemblies evaluated; the "hide N" control appears
-    // when it lands.
-    await page.locator(".bar label.inline").waitFor({ timeout: 90_000 });
+    // Availability is 154 assemblies evaluated; the "hide N" control in the
+    // assembly panel appears when it lands.
+    await page.locator('[data-testid="assembly-list"] button').first().waitFor({
+      timeout: 90_000,
+    });
   }
 
   it("opens a data tree over HTTP Range and offers both brands", async () => {
@@ -135,7 +153,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   it("walks brand to model to vehicle to assembly, and renders the drawing", async () => {
     const page = await openCatalogue();
     await identify(page);
-    await pick(page, "assemblies", "Complete engine", ASSEMBLY);
+    await pickAssembly(page, ASSEMBLY);
 
     // No plate step: this assembly resolves to exactly one plate for this
     // vehicle, so it opens itself. Two thirds of assemblies behave this way,
@@ -165,7 +183,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   it("puts every callout hotspot inside the drawing", async () => {
     const page = await openCatalogue();
     await identify(page);
-    await pick(page, "assemblies", "Complete engine", ASSEMBLY);
+    await pickAssembly(page, ASSEMBLY);
     await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
     await page.waitForFunction(() => {
       const i = document.querySelector<HTMLImageElement>(".stage img");
@@ -194,7 +212,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   it("cross-highlights a callout between the drawing and the parts list", async () => {
     const page = await openCatalogue();
     await identify(page);
-    await pick(page, "assemblies", "Complete engine", ASSEMBLY);
+    await pickAssembly(page, ASSEMBLY);
     await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
     await page.waitForFunction(() => {
       const i = document.querySelector<HTMLImageElement>(".stage img");
@@ -237,7 +255,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   it("lists parts with a reference and a description", async () => {
     const page = await openCatalogue();
     await identify(page);
-    await pick(page, "assemblies", "Complete engine", ASSEMBLY);
+    await pickAssembly(page, ASSEMBLY);
     await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
 
     expect(await page.locator("tbody tr").count()).toBeGreaterThan(0);
@@ -258,11 +276,11 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   it("resolves undecided parts once the vehicle is narrowed", async () => {
     const page = await openCatalogue();
     await identify(page);
-    await pick(page, "assemblies", "Complete engine", ASSEMBLY);
+    await pickAssembly(page, ASSEMBLY);
     await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
 
     // Before narrowing, the ordered clauses cannot be decided.
-    const before = (await page.locator(".chrome .right").textContent()) ?? "";
+    const before = (await page.getByTestId("plate-key").textContent()) ?? "";
     expect(before).toMatch(/undecided/);
 
     // A build number needs a factory to mean anything — `resolveDate` compares
@@ -281,7 +299,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     // couple of seconds, and an empty `.ask` list during it made the loop exit
     // immediately with six parts still undecided.
     for (let guard = 0; guard < 8; guard++) {
-      const settled = (await page.locator(".chrome .right").textContent()) ?? "";
+      const settled = (await page.getByTestId("plate-key").textContent()) ?? "";
       if (/\b0 undecided/.test(settled)) break;
       const asks = page.locator(".ask select");
       await asks.first().waitFor({ timeout: 30_000 });
@@ -299,11 +317,12 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
       if (!answered) break;
     }
     await page.waitForFunction(
-      () => /0 undecided/.test(document.querySelector(".chrome .right")?.textContent ?? ""),
+      () =>
+        /0 undecided/.test(document.querySelector('[data-testid="plate-key"]')?.textContent ?? ""),
       null,
       { timeout: 30_000 },
     );
-    const after = (await page.locator(".chrome .right").textContent()) ?? "";
+    const after = (await page.getByTestId("plate-key").textContent()) ?? "";
     expect(after).toMatch(/0 undecided/);
     expect(after).not.toMatch(/^0 decided/);
     await page.close();

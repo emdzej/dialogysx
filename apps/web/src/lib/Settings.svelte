@@ -34,6 +34,12 @@
     onForgetFolder: () => void;
     /** Absent when the browser cannot write, so the offer is not made. */
     onImport?: () => void;
+    /** Catalogue languages the open tree carries. */
+    languages?: string[];
+    language?: string;
+    /** Which country's part names resolved, if any. */
+    partNameCountry?: string;
+    onLanguage?: (code: string) => void;
     onClose: () => void;
   }
 
@@ -49,8 +55,22 @@
     onReopenFolder,
     onForgetFolder,
     onImport,
+    languages = [],
+    language,
+    partNameCountry,
+    onLanguage,
     onClose,
   }: Props = $props();
+
+  /**
+   * Which section is showing.
+   *
+   * Language only appears when the open tree offers a choice — a tree imported
+   * with `-l en` has exactly one, and a tab that can only confirm what is
+   * already true is noise.
+   */
+  let tab = $state<"data" | "language">("data");
+  const showLanguage = $derived(languages.length > 1 && onLanguage !== undefined);
 
   // Seeded from what is remembered, so reopening the dialog shows the tree in
   // use rather than the default. Capturing the initial value is the intent
@@ -94,10 +114,27 @@
     </header>
 
     <div class="tabs" role="tablist" aria-label="Settings sections">
-      <button type="button" role="tab" aria-selected="true" class="on">Data</button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === "data"}
+        class:on={tab === "data"}
+        onclick={() => (tab = "data")}
+        data-testid="tab-data">Data</button
+      >
+      {#if showLanguage}
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "language"}
+          class:on={tab === "language"}
+          onclick={() => (tab = "language")}
+          data-testid="tab-language">Language</button
+        >
+      {/if}
     </div>
 
-    <div class="body">
+    <div class="body" class:hidden={tab !== "data"}>
       {#if firstRun}
         <p class="lede">
           dialogysx ships no vehicle data. Point it at a tree built with
@@ -199,6 +236,47 @@
         its permission on reload, so it needs one click to grant access again.
       </p>
     </div>
+
+    {#if showLanguage && tab === "language"}
+      <div class="body">
+        <section>
+          <h2>Catalogue language</h2>
+          <p class="hint">
+            Criterion names, assembly names and the menu come from
+            <code>langue/&lt;code&gt;/</code>. Changing this reopens the tree, which takes a
+            moment — the vocabulary and the menu are read again.
+          </p>
+          <div class="row">
+            <select
+              aria-label="Catalogue language"
+              value={language}
+              onchange={(e) => onLanguage?.(e.currentTarget.value)}
+              data-testid="language-select"
+            >
+              {#each languages as l (l)}
+                <option value={l}>{l}</option>
+              {/each}
+            </select>
+          </div>
+        </section>
+
+        <section>
+          <h2>Part names</h2>
+          {#if partNameCountry}
+            <p class="hint">
+              Resolved from <code>{partNameCountry}</code>. Part descriptions ship per
+              <em>country</em> rather than per language — several countries share one language,
+              and each tariff names only what is sold there, so coverage is partial by design.
+            </p>
+          {:else}
+            <p class="hint warn">
+              None in this tree. Import the <code>part-names</code> component to get them;
+              without it parts show a reference and no description.
+            </p>
+          {/if}
+        </section>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -271,6 +349,21 @@
   }
   .body {
     padding: 14px 16px 16px;
+  }
+  .body.hidden {
+    display: none;
+  }
+  select {
+    font: inherit;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--card);
+    color: var(--ink);
+  }
+  .hint.warn {
+    color: var(--red);
   }
   .lede {
     margin: 0 0 14px;
