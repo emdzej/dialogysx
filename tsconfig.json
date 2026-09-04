@@ -4,6 +4,7 @@
     { "path": "./packages/core" },
     { "path": "./packages/raf" },
     { "path": "./packages/catalogue" },
+    { "path": "./packages/importer" },
     { "path": "./apps/cli" }
   ]
 }

@@ -38,6 +38,9 @@ importers:
       '@dialogysx/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@dialogysx/importer':
+        specifier: workspace:*
+        version: link:../../packages/importer
       '@dialogysx/raf':
         specifier: workspace:*
         version: link:../../packages/raf
@@ -105,6 +108,12 @@ importers:
         version: link:../raf
 
   packages/core: {}
+
+  packages/importer:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.13.1
+        version: 22.20.1
 
   packages/raf:
     devDependencies:

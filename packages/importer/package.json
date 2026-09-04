@@ -1,0 +1,24 @@
+{
+  "name": "@dialogysx/importer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Disc classification, import planning, and a browser-capable zip reader",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1"
+  }
+}

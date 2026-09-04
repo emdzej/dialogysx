@@ -5,8 +5,9 @@ import { mkdir, stat } from "node:fs/promises";
 import { extname } from "node:path";
 import { Command } from "@commander-js/extra-typings";
 import chalk from "chalk";
-import { COMPONENTS, resolveComponents } from "./components.js";
-import { identify, type DiscSource } from "./discover.js";
+import { COMPONENTS, resolveComponents } from "@dialogysx/importer";
+import { identify, type DiscSource } from "@dialogysx/importer";
+import { NodeSourceFs } from "./node-fs.js";
 import { canMountIso, mountIso, type Mounted } from "./iso.js";
 import { buildPlan } from "./plan.js";
 import { execute, type Progress } from "./execute.js";
@@ -77,6 +78,7 @@ export function importCommand(): Command<[string[]]> {
       }
 
       // --- resolve sources, mounting ISOs as needed -----------------------
+      const sourceFs = new NodeSourceFs();
       const mounted: Mounted[] = [];
       const discs: DiscSource[] = [];
       try {
@@ -105,7 +107,7 @@ export function importCommand(): Command<[string[]]> {
             return;
           }
 
-          const disc = await identify(root);
+          const disc = await identify(sourceFs, root);
           if (!disc) {
             console.log(`  ${chalk.yellow("??")} ${src}: nothing recognisable — skipped`);
             continue;

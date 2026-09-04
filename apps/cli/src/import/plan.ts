@@ -15,8 +15,20 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
-import { COMPONENTS, componentFor, isJunk, type ComponentSpec } from "./components.js";
-import type { DiscSource } from "./discover.js";
+import { COMPONENTS, componentFor, isJunk, type ComponentSpec } from "@dialogysx/importer";
+import {
+  destination,
+  imageEntryFilter,
+  isDrawingArchive,
+  isGroupArchive,
+  isImageArchive,
+  isLabourTimeArchive,
+  isLanguageArchive,
+  isTarifArchive,
+  isVersionStamp,
+  tarifEntryFilter,
+  type DiscSource,
+} from "@dialogysx/importer";
 
 export interface CopyAction {
   type: "copy";
@@ -89,117 +101,22 @@ export interface PlanOptions {
 }
 
 /** Where a disc's file lands in the merged tree. */
-function destination(source: DiscSource, relativePath: string): string {
-  const p = relativePath.split(sep).join(posix.sep);
-  switch (source.kind) {
-    // The catalogue disc *is* the root: `pr/`, `enveloppe/`, `dessins/` ...
-    // so readers see the same layout they see on a mounted disc.
-    case "catalogue":
-      return p;
-    // Repair discs contribute `mrnt/<lang>/d3k/...`; strip their `data/` prefix.
-    case "mrnt":
-      return p.replace(/^data\//, "");
-    // Application resources are kept aside; they are not catalogue data.
-    case "app":
-      return posix.join("app", p);
-  }
-}
-
+/** Every file under `dir`, depth-first, as absolute paths. */
 async function* walk(dir: string): AsyncIterableIterator<string> {
-  let entries;
-  try {
-    entries = await readdir(dir, { withFileTypes: true });
-  } catch {
-    return;
-  }
-  for (const e of entries) {
-    const full = join(dir, e.name);
-    if (e.isDirectory()) yield* walk(full);
-    else if (e.isFile()) yield full;
+  for (const entry of await readdir(dir, { withFileTypes: true }).catch(() => [])) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) yield* walk(path);
+    else yield path;
   }
 }
 
-/** Image archives that must be extracted rather than copied. */
-function isImageArchive(dest: string): boolean {
-  return /^mrnt\/[^/]+\/d3k\/images\/[^/]+\.zip$/.test(dest);
-}
-
-function isDrawingArchive(dest: string): boolean {
-  return dest === "dessins/100.zip" || dest === "eclate/100.zip";
-}
-
 /**
- * `pr/<group>.zip` holds a group's `ListeVarVal` — the value table every
- * applicability condition indexes into. Extracting it makes that a plain URL,
- * so the browser needs no zip reader on the critical path.
- */
-function isGroupArchive(dest: string): boolean {
-  return /^pr\/[0-9A-Za-z]+\.zip$/.test(dest);
-}
-
-/**
- * `tarif.zip` holds 42 country/language datasets — the part **descriptions** as
- * well as the prices. Extracting it lets the two be separate components, and
- * makes `libellePieces-<lg>.txt` a plain URL.
- */
-function isTarifArchive(dest: string): boolean {
-  return dest === "tarif.zip";
-}
-
-/**
- * `langue/<lg>/<lg>.zip` carries the `menu` tree, which is the only source of
- * assembly and domain names. Extracted for the same reason as the group zips.
- */
-function isLanguageArchive(dest: string): boolean {
-  return /^langue\/([^/]+)\/\1\.zip$/.test(dest);
-}
-
-/**
- * `TM.zip` holds 99,056 small XML documents. Extracting makes each one an
- * individually addressable URL, which is the whole point of the static-tree
- * design — a client cannot range-read its way into a zip's deflate stream.
- */
-function isLabourTimeArchive(dest: string): boolean {
-  return dest === "TM.zip";
-}
-
-/**
- * Version stamps under `update/` are disc metadata, not data.
+ * SHA-256 of a file on disk.
  *
- * Every disc has one and they disagree — catalogue `versmpf=4.5.6` against the
- * repair discs' `versmpf=4.56.20160921` — so merging them into one tree path
- * would mean silently picking a winner. `discover` reads them instead and the
- * manifest records all of them, so nothing is lost by not copying them.
+ * Streamed, unlike the package's whole-buffer version: this runs on paths that
+ * repeat across discs, and one of those is a 945 MB archive.
  */
-function isVersionStamp(dest: string): boolean {
-  return dest.startsWith("update/");
-}
-
-/**
- * Which `tarif.zip` entries to unpack.
- *
- * Paths inside are `tarif/d3k/<COUNTRY>/<lang>/<file>`. Language is the filter
- * that matters — a country is only a pricing region, and several share one
- * language — so this keeps every country whose language was asked for, and
- * splits `libelles*` (part names) from `tarif`/`CBareme` (prices) by component.
- */
-function tarifEntryFilter(
-  selected: Set<string>,
-  languages: string[] | undefined,
-): (entryName: string) => boolean {
-  const wantNames = selected.has("part-names");
-  const wantPrices = selected.has("pricing");
-  return (entryName) => {
-    const m = /^tarif\/d3k\/[^/]+\/([^/]+)\/(.+)$/.exec(entryName);
-    if (!m) return false;
-    const [, lang, file] = m;
-    if (languages && lang !== undefined && !languages.includes(lang)) return false;
-    const isName = /^(libellePieces-.+\.txt|libelles(\.idx)?)$/.test(file ?? "");
-    return isName ? wantNames : wantPrices;
-  };
-}
-
-async function sha256(path: string): Promise<string> {
+async function sha256File(path: string): Promise<string> {
   const hash = createHash("sha256");
   for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
   return hash.digest("hex");
@@ -265,6 +182,7 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
           bytes,
           source,
           component: component.id,
+          keepEntry: imageEntryFilter,
         };
       } else if (isGroupArchive(dest)) {
         action = {
@@ -333,8 +251,8 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
 
   for (const [to, list] of byDest) {
     if (list.length < 2) continue;
-    const hashes = await Promise.all(list.map((a) => sha256(a.from)));
-    const identical = hashes.every((h) => h === hashes[0]);
+    const hashes = await Promise.all(list.map((a) => sha256File(a.from)));
+    const identical = hashes.every((h: string) => h === hashes[0]);
     if (identical) {
       // Keep the first, drop the rest. Nothing is lost.
       for (const a of list.slice(1)) keep.delete(a);
