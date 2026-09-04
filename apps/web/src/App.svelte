@@ -22,6 +22,7 @@
   import Combo from "./lib/Combo.svelte";
   import About from "./lib/About.svelte";
   import Documents from "./lib/Documents.svelte";
+  import Icon from "./lib/Icon.svelte";
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
   import { HttpTreeSource } from "./lib/http-source";
@@ -116,7 +117,15 @@
         title="Release notes"
         data-testid="version">{__APP_VERSION__}</a
       >
-      <span class="tagline">Renault / Dacia parts catalogue</span>
+      <a
+        class="repo"
+        href={__REPO_URL__}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Source on GitHub"
+        aria-label="Source on GitHub"
+        data-testid="repo"><Icon name="github" size={14} /></a
+      >
     </div>
     <div class="open">
       <input bind:value={baseUrl} spellcheck="false" aria-label="Static tree URL" />
@@ -524,9 +533,14 @@
   .version:hover {
     color: #fff;
   }
-  .tagline {
-    opacity: 0.75;
-    font-size: 0.78rem;
+  .repo {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    color: rgb(255 255 255 / 62%);
+  }
+  .repo:hover {
+    color: #fff;
   }
   .open {
     display: flex;
