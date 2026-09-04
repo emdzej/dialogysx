@@ -12,6 +12,7 @@ import { canMountIso, mountIso, type Mounted } from "./iso.js";
 import { buildPlan } from "./plan.js";
 import { execute, type Progress } from "./execute.js";
 import { buildManifest, writeManifest } from "./manifest.js";
+import { writeCsfsManifest, CSFS_MANIFEST_FILE } from "./csfs-manifest.js";
 
 const gb = (n: number) => `${(n / 1e9).toFixed(2)} GB`;
 
@@ -276,8 +277,9 @@ export function importCommand(): Command<[string[]]> {
         }
 
         // --- manifest -----------------------------------------------------
+        const builtAt = new Date().toISOString();
         const manifest = await buildManifest(opts.out, {
-          builtAt: new Date().toISOString(),
+          builtAt,
           sources: discs.map((d) => ({
             kind: d.kind,
             label: d.label,
@@ -296,6 +298,32 @@ export function importCommand(): Command<[string[]]> {
         console.log(
           `${chalk.green("manifest")} ${manifest.datasets.length} dataset(s) present, ` +
             `catalogue languages ${manifest.catalogueLanguages.join(" ") || "(none)"}`,
+        );
+
+        // The tree is not servable over HTTP until this exists — a static host
+        // cannot list a directory, so a reader has no other way to know what is
+        // here or how big it is. Written last, alongside the manifest it
+        // complements, and from the *same* archive array so the two cannot
+        // disagree about what is packed.
+        const csfs = await writeCsfsManifest(opts.out, {
+          archives: plan.archives,
+          label: `dialogysx ${manifest.sources.map((s) => s.label).join(" + ")}`,
+          builtAt,
+          onProgress: (found) => {
+            // Only to a terminal: a `\r` means nothing in a redirected log, so a
+            // progress line there just buries the summary in spaces.
+            if (process.stderr.isTTY && found % 10_000 === 0) {
+              process.stderr.write(
+                `\r  ${chalk.dim(`describing ${found.toLocaleString()} files`)}`,
+              );
+            }
+          },
+        });
+        if (process.stderr.isTTY) process.stderr.write("\r".padEnd(48) + "\r");
+        console.log(
+          `${chalk.green(CSFS_MANIFEST_FILE)} ${csfs.files.toLocaleString()} files, ` +
+            `${(csfs.bytes / 1e9).toFixed(2)} GB described, ` +
+            `${(csfs.jsonBytes / 1e6).toFixed(2)} MB of JSON`,
         );
 
         if (opts.verify) {

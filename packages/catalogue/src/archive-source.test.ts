@@ -78,8 +78,11 @@ function memorySource(files: Map<string, Uint8Array>): FileSource {
   };
 }
 
+// Rooted, which is the canonical spelling an importer now writes and the same
+// value `@emdzej/csfs-zip` takes. The tree itself is still addressed
+// relatively, so these fixtures also check that the two meet correctly.
 const MOUNTS: ArchiveMount[] = [
-  { archive: "dessins/100.zip", serves: "dessins/100", entry: "basename" },
+  { archive: "/dessins/100.zip", serves: "/dessins/100", entry: "basename" },
 ];
 
 describe("ArchiveSource", () => {
@@ -93,6 +96,59 @@ describe("ArchiveSource", () => {
     const src = new ArchiveSource(memorySource(files), MOUNTS);
     const bytes = await src.readAll("dessins/100/1132/1132C000.png");
     expect(new TextDecoder().decode(bytes)).toBe("a drawing");
+  });
+
+  it("accepts a mount written the old relative way", async () => {
+    // Trees built before mounts were rooted carry `dessins/100.zip`. Reading
+    // one must keep working — the tree on disk is unchanged and re-importing
+    // 15 GB to fix a leading slash would be absurd. `dialogysx manifest`
+    // rewrites the spelling; this is what makes it optional rather than
+    // required.
+    const files = new Map([
+      ["dessins/100.zip", buildZip([{ name: "1132C000.png", data: "a drawing" }])],
+    ]);
+    const src = new ArchiveSource(memorySource(files), [
+      { archive: "dessins/100.zip", serves: "dessins/100", entry: "basename" },
+    ]);
+    const bytes = await src.readAll("dessins/100/1132/1132C000.png");
+    expect(new TextDecoder().decode(bytes)).toBe("a drawing");
+  });
+
+  it("resolves a relative mount identically to a rooted one", async () => {
+    // The two spellings are the same mount, so they must not diverge. If they
+    // ever do, it will be here rather than in a tree nobody can re-import.
+    const files = new Map([
+      ["dessins/100.zip", buildZip([{ name: "x.png", data: "the drawing" }])],
+    ]);
+    const path = "dessins/100/x/x.png";
+    const relative = new ArchiveSource(memorySource(files), [
+      { archive: "dessins/100.zip", serves: "dessins/100", entry: "basename" },
+    ]);
+    const rooted = new ArchiveSource(memorySource(files), [
+      { archive: "/dessins/100.zip", serves: "/dessins/100", entry: "basename" },
+    ]);
+    expect(await rooted.readAll(path)).toEqual(await relative.readAll(path));
+    expect(new TextDecoder().decode(await rooted.readAll(path))).toBe("the drawing");
+  });
+
+  it("strips the root before asking the tree for the archive", async () => {
+    // Mounts are rooted; `FileSource` addresses the tree relatively. A missing
+    // strip here asks for `/dessins/100.zip`, which no source has, and every
+    // archived read returns undefined with nothing to point at the cause.
+    const asked: string[] = [];
+    const files = new Map([["dessins/100.zip", buildZip([{ name: "y.png", data: "found it" }])]]);
+    const inner = memorySource(files);
+    const watched: typeof inner = {
+      ...inner,
+      byteSource: async (path: string) => {
+        asked.push(path);
+        return inner.byteSource!(path);
+      },
+    };
+    const src = new ArchiveSource(watched, MOUNTS);
+    expect(new TextDecoder().decode(await src.readAll("dessins/100/y/y.png"))).toBe("found it");
+    expect(asked).toContain("dessins/100.zip");
+    expect(asked).not.toContain("/dessins/100.zip");
   });
 
   it("prefers an extracted file when the tree has one", async () => {
@@ -119,8 +175,8 @@ describe("ArchiveSource", () => {
       [`${dir}/3/images_1.zip`, buildZip([{ name: "three.png", data: "third disc" }])],
     ]);
     const mounts: ArchiveMount[] = [1, 2, 3].map((n) => ({
-      archive: `${dir}/${n}/images_1.zip`,
-      serves: dir,
+      archive: `/${dir}/${n}/images_1.zip`,
+      serves: `/${dir}`,
       entry: "basename",
     }));
     const src = new ArchiveSource(memorySource(files), mounts);

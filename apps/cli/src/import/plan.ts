@@ -193,12 +193,14 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
         // which is stable because it is recorded in the manifest alongside.
         const dir = dest.replace(/\/[^/]+\.zip$/, "");
         const to = `${dir}/${discOrdinal}/${dest.slice(dir.length + 1)}`;
-        archives.push({ archive: to, serves: dir, entry: "basename" });
+        // Rooted, because this array is written to both manifests and csfs
+        // takes mount paths rooted. One value, no translation.
+        archives.push({ archive: `/${to}`, serves: `/${dir}`, entry: "basename" });
         action = { type: "copy", from, to, bytes, source, component: component.id };
       } else if (!extractDrawings && isDrawingArchive(dest)) {
         // The flat archive serves the bucketed tree the app asks for, which is
         // why the entry naming has to be declared rather than derived.
-        archives.push({ archive: dest, serves: "dessins/100", entry: "basename" });
+        archives.push({ archive: `/${dest}`, serves: "/dessins/100", entry: "basename" });
         action = { type: "copy", from, to: dest, bytes, source, component: component.id };
       } else if (extractImages && isImageArchive(dest)) {
         action = {

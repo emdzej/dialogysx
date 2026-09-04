@@ -2,7 +2,7 @@
   "name": "@dialogysx/web",
   "version": "0.1.0",
   "private": true,
-  "description": "Browser client for dialogysx — parts catalogue and repair documentation, client-side",
+  "description": "Browser client for dialogysx \u2014 parts catalogue and repair documentation, client-side",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
@@ -16,7 +16,13 @@
     "@dialogysx/core": "workspace:*",
     "@dialogysx/importer": "workspace:*",
     "@dialogysx/raf": "workspace:*",
-    "@lucide/svelte": "^1.40.0"
+    "@lucide/svelte": "^1.40.0",
+    "@emdzej/csfs-core": "link:../../../csfs/packages/core",
+    "@emdzej/csfs-fsa": "link:../../../csfs/packages/fsa",
+    "@emdzej/csfs-http": "link:../../../csfs/packages/http",
+    "@emdzej/csfs-manifest": "link:../../../csfs/packages/manifest",
+    "@emdzej/csfs-opfs": "link:../../../csfs/packages/opfs",
+    "@emdzej/csfs-zip": "link:../../../csfs/packages/zip"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

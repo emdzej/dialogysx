@@ -23,6 +23,7 @@ import {
   parseReperes,
 } from "@dialogysx/catalogue";
 import { decodeText, encodeKey } from "@dialogysx/raf";
+import { manifestCommand } from "./import/manifest-command.js";
 import { importCommand } from "./import/command.js";
 import { docsCommand } from "./docs.js";
 import { NodeDirectorySource } from "./node-source.js";
@@ -37,6 +38,7 @@ const program = new Command()
   .version("0.1.0");
 
 program.addCommand(importCommand());
+program.addCommand(manifestCommand());
 program.addCommand(platesCommand());
 program.addCommand(organesCommand());
 program.addCommand(docsCommand());

@@ -18,7 +18,7 @@
    * stay separate here — the documents are indexed by *family* rather than by
    * PR group, and their applicability is a different, much simpler grammar.
    */
-  import { plateLabel, type VehicleSpec } from "@dialogysx/catalogue";
+  import { plateLabel, type FileSource, type VehicleSpec } from "@dialogysx/catalogue";
   import Combo from "./lib/Combo.svelte";
   import About from "./lib/About.svelte";
   import Assemblies from "./lib/Assemblies.svelte";
@@ -30,6 +30,7 @@
   import Import from "./lib/Import.svelte";
   import Settings from "./lib/Settings.svelte";
   import { HttpTreeSource } from "./lib/http-source";
+  import { csfsSource } from "./lib/csfs-source";
   import { isSupported, LocalDirectorySource, revokeImageUrl } from "./lib/local-source";
   import {
     clearDirectoryHandle,
@@ -89,7 +90,7 @@
     }
     if (settings.source.kind === "http") {
       await app.open(
-        new HttpTreeSource({ baseUrl: settings.source.url }),
+        await httpSource(settings.source.url),
         settings.source.url,
         settings.language,
       );
@@ -130,9 +131,35 @@
     void restore();
   });
 
+  /**
+   * Read through csfs instead of the local storage layer.
+   *
+   * `?engine=csfs` on the URL. csfs is dialogysx's read layer generalised into
+   * a library, and this switch exists so the two can be compared against real
+   * data: the same browser suite runs through either, which turns "csfs behaves
+   * identically" into something measured rather than assumed. It needs the
+   * tree to carry a `csfs-manifest.json`, because HTTP cannot list a directory.
+   */
+  const useCsfs =
+    typeof location !== "undefined" && new URLSearchParams(location.search).get("engine") === "csfs";
+
+  async function httpSource(url: string): Promise<FileSource> {
+    if (!useCsfs) return new HttpTreeSource({ baseUrl: url });
+    const { httpFileSystem } = await import("@emdzej/csfs-http");
+    const { withArchives, withTransparentArchives } = await import("@emdzej/csfs-zip");
+    const base = httpFileSystem(url);
+    // The tree may keep archives packed; the manifest says which.
+    const archives = await base.archives().catch(() => []);
+    const fs =
+      archives.length > 0
+        ? withTransparentArchives(withArchives(base), archives)
+        : withArchives(base);
+    return csfsSource(fs);
+  }
+
   async function openUrl(url: string): Promise<void> {
     settingsError = undefined;
-    await app.open(new HttpTreeSource({ baseUrl: url }), url);
+    await app.open(await httpSource(url), url);
     if (app.status.kind === "error") {
       settingsError = app.status.message;
       return;

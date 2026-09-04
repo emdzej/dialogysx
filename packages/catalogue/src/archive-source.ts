@@ -35,12 +35,30 @@ export type EntryNaming =
   /** The path with the mount's prefix removed, for an archive that nests. */
   | "relative";
 
+/**
+ * Which archive stands in for which directory.
+ *
+ * Paths are `/`-rooted — `/dessins/100.zip`, `/dessins/100` — deliberately,
+ * because this is the same value `@emdzej/csfs-zip` takes for a mount. Rooting
+ * them is the whole of the compatibility: the array in `manifest.json` can be
+ * handed to `withTransparentArchives` unchanged, and there is nothing to
+ * translate and so nothing to drift.
+ *
+ * Requested paths, by contrast, arrive relative — the catalogue's own
+ * references have no leading slash — so `mountsFor` roots them before
+ * comparing rather than requiring every caller to.
+ */
 export interface ArchiveMount {
-  /** Path of the archive itself, relative to the tree root. */
+  /** Path of the archive itself, from the tree root. */
   archive: string;
-  /** The directory it stands in for, e.g. `dessins/100`. */
+  /** The directory it stands in for, e.g. `/dessins/100`. */
   serves: string;
   entry: EntryNaming;
+}
+
+/** `/`-rooted, so a mount and a request can be compared. */
+function rooted(path: string): string {
+  return path.startsWith("/") ? path : `/${path}`;
 }
 
 /** What `manifest.json` carries so a reader knows which archives to consult. */
@@ -96,11 +114,13 @@ export class ArchiveSource implements FileSource {
    * order does not matter.
    */
   private mountsFor(path: string): ArchiveMount[] {
-    return this.mounts.filter((m) => path.startsWith(`${m.serves}/`));
+    const p = rooted(path);
+    return this.mounts.filter((m) => p.startsWith(`${rooted(m.serves)}/`));
   }
 
   private entryName(mount: ArchiveMount, path: string): string {
-    return mount.entry === "basename" ? basename(path) : path.slice(mount.serves.length + 1);
+    if (mount.entry === "basename") return basename(path);
+    return rooted(path).slice(rooted(mount.serves).length + 1);
   }
 
   /**
@@ -132,10 +152,14 @@ export class ArchiveSource implements FileSource {
   private bytes(archive: string): Promise<ByteSource | undefined> {
     const hit = this.handles.get(archive);
     if (hit) return hit;
+    // The one place the rooted spelling has to come back off: mounts are
+    // rooted to match csfs, while `FileSource` addresses the tree relatively.
+    // Keyed on the rooted form above, so the cache agrees with the mounts.
+    const relative = archive.replace(/^\/+/, "");
     // A source without `byteSource` cannot serve archives; `readAll` and
     // `fileUrl` then fall through to the extracted tree, which is the right
     // answer rather than an error.
-    const promise = (this.inner.byteSource?.(archive) ?? Promise.resolve(undefined)).catch(
+    const promise = (this.inner.byteSource?.(relative) ?? Promise.resolve(undefined)).catch(
       () => undefined,
     );
     this.handles.set(archive, promise);

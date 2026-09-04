@@ -19,6 +19,8 @@
     "@dialogysx/core": "workspace:*",
     "@dialogysx/importer": "workspace:*",
     "@dialogysx/raf": "workspace:*",
+    "@emdzej/csfs-manifest": "link:../../../csfs/packages/manifest",
+    "@emdzej/csfs-node": "link:../../../csfs/packages/node",
     "chalk": "^6.0.0",
     "commander": "^15.0.0",
     "fflate": "^0.8.3",

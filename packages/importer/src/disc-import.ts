@@ -176,11 +176,14 @@ export async function planDisc(
       const dir = dest.replace(/\/[^/]+\.zip$/, "");
       // A per-disc subdirectory, because the names collide across discs and a
       // plain copy would keep whichever landed last.
-      const ordinal = (state.archives ?? []).filter((a) => a.serves === dir).length + 1;
+      // Rooted to match csfs, so the array goes into both manifests unchanged.
+      // Compared rooted too, or the ordinal restarts at 1 for every disc and
+      // the second disc's archive overwrites the first.
+      const ordinal = (state.archives ?? []).filter((a) => a.serves === `/${dir}`).length + 1;
       to = `${dir}/${ordinal}/${dest.slice(dir.length + 1)}`;
-      mount = { archive: to, serves: dir, entry: "basename" };
+      mount = { archive: `/${to}`, serves: `/${dir}`, entry: "basename" };
     } else if (!extractDrawings && isDrawingArchive(dest)) {
-      mount = { archive: dest, serves: "dessins/100", entry: "basename" };
+      mount = { archive: `/${dest}`, serves: "/dessins/100", entry: "basename" };
     }
 
     const extract = mount

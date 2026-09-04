@@ -26,6 +26,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const URL = process.env.DIALOGYSX_E2E_URL;
 
 /**
+ * Which read layer to exercise.
+ *
+ * `DIALOGYSX_E2E_ENGINE=csfs` runs the whole suite through `@emdzej/csfs-*`
+ * instead of the local storage layer, which is how "csfs behaves identically"
+ * gets measured rather than asserted. It needs the tree to carry a
+ * `csfs-manifest.json`, since HTTP cannot list a directory.
+ */
+const ENGINE = process.env.DIALOGYSX_E2E_ENGINE;
+const QUERY = ENGINE ? `?engine=${ENGINE}` : "";
+
+/**
  * A model known to have the full chain, and its PR group.
  *
  * Master II is the case a user reported: `ED01` under "Complete engine" gives
@@ -64,7 +75,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
    */
   async function openCatalogue(): Promise<Page> {
     const page = await browser!.newPage();
-    await page.goto(URL!, { waitUntil: "domcontentloaded" });
+    await page.goto(`${URL!}${QUERY}`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("settings").waitFor({ timeout: 30_000 });
     await page.getByTestId("settings-url").fill("/data");
     await page.getByRole("button", { name: "Open", exact: true }).click();
@@ -438,7 +449,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
 
   it("reports a tree that is not there instead of failing silently", async () => {
     const page = await browser!.newPage();
-    await page.goto(URL!, { waitUntil: "domcontentloaded" });
+    await page.goto(`${URL!}${QUERY}`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("settings").waitFor({ timeout: 30_000 });
     await page.getByTestId("settings-url").fill("/nope");
     await page.getByRole("button", { name: "Open", exact: true }).click();
