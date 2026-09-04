@@ -52,16 +52,27 @@ export const COMPONENTS: readonly ComponentSpec[] = [
   },
   {
     id: "drawings",
-    what: "Parts drawings, 39,584 PNGs already unpacked (dessins/100/)",
+    what: "Parts drawings as one archive, dessins/100.zip — 38,488 PNGs, read in place",
     withoutIt: "no plate illustrations; the parts list still works",
-    matches: (d) => d.startsWith("dessins/100/"),
+    matches: (d) => d === "dessins/100.zip",
     defaultOn: true,
   },
   {
-    id: "drawings-archive",
-    what: "The same drawings again as dessins/100.zip",
-    withoutIt: "nothing — it duplicates `drawings` byte for byte, so it is off by default",
-    matches: (d) => d === "dessins/100.zip",
+    id: "drawings-extracted",
+    /*
+     * The drawings ship twice: this flat archive and a `dessins/100/` tree
+     * bucketed by the first four characters of each name. The archive is
+     * *smaller* and one file instead of 38,488, and the app reads it in place
+     * — so it is now the default and this is the opt-out.
+     *
+     * Note the two layouts differ. `100.zip` stores `1132C000.png` at its top
+     * level while the tree stores `dessins/100/1132/1132C000.png`, so a naive
+     * extraction of the archive produces paths nothing can read. That is why
+     * `ArchiveSource` is told how to name an entry rather than deriving it.
+     */
+    what: "The same drawings again, pre-extracted into dessins/100/ (0.71 GB, 38,489 files)",
+    withoutIt: "nothing — `drawings` serves the same images out of the archive",
+    matches: (d) => d.startsWith("dessins/100/"),
     defaultOn: false,
   },
   {

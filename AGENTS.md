@@ -92,6 +92,12 @@ the reasons are all cases where a copy loses data **without an error**:
   `bkp/` tree beside its illustrations — somebody left a backup inside a
   shipped archive — so image archives keep only illustrations.
 
+- **Illustration and drawing archives are copied, not extracted, by default.**
+  They are read in place through `ArchiveSource`, and each is copied into a
+  per-disc subdirectory because the names collide — `images_1.zip` exists on
+  three English discs with different contents. Every one of them must reach
+  `manifest.json`'s `archives`, or its illustrations become unreachable.
+
 **Every file on every disc must map to a named component.** `--dry-run`
 prints anything unclaimed, and that list is how `TM.zip` (99,056 labour-time
 XMLs), `tarif.zip` and `REACH.zip` were found. If you add a disc and something
@@ -316,6 +322,24 @@ Two things that follow:
   directory or truncate every entry to nothing; and `fflate.unzip`, which does
   read the central directory, wants the whole archive in memory when
   `images_1.zip` is 945 MB.
+
+## Reading archives in place
+
+`ArchiveSource` decorates a `FileSource` so packed archives answer for the
+directory they stand in for. Three things about it are load-bearing:
+
+- **A mount declares how to name an entry.** The drawings ship in two layouts —
+  `100.zip` flat, and a `dessins/100/` tree bucketed by the first four
+  characters — so stripping a prefix gives the wrong name. `entry: "basename"`
+  is a fact about that archive, not a default.
+- **Several archives can serve one directory**, because `images_1.zip` exists
+  three times with different contents. A lookup tries each; their entry names
+  do not overlap.
+- **`fileUrl` prefers the archive, `readAll` prefers the extracted file.** The
+  asymmetry is deliberate: `HttpTreeSource.fileUrl` returns a URL without
+  checking anything, so asking it first yielded a URL for every drawing, each
+  of which 404'd, and the archive was never consulted — an `<img>` that never
+  loaded, with no error anywhere.
 
 ## Persisted state in the browser
 

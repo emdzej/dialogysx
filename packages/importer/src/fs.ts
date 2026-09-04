@@ -13,7 +13,7 @@
  * import reads a tree once and writes files once, and a wider interface would
  * invite a browser adapter to pretend it has capabilities it does not.
  */
-import type { ByteSource } from "./zip.js";
+import type { ByteSource } from "@dialogysx/raf";
 
 export interface DirEntry {
   name: string;

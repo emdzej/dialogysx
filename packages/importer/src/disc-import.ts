@@ -33,6 +33,7 @@ import { joinPath, walkFiles, type SourceFs, type TargetFs } from "./fs.js";
 import {
   destination,
   imageEntryFilter,
+  isDrawingArchive,
   isGroupArchive,
   isImageArchive,
   isLabourTimeArchive,
@@ -41,7 +42,7 @@ import {
   isVersionStamp,
   tarifEntryFilter,
 } from "./paths.js";
-import { openZipEntry, readZipEntries, type ByteSource } from "./zip.js";
+import { openZipEntry, readZipEntries, type ByteSource } from "@dialogysx/raf";
 
 /** Accumulated across discs, kept in the target tree. */
 export interface ImportState {
@@ -54,6 +55,21 @@ export interface ImportState {
   catalogueLanguages: string[];
   /** Repair-documentation languages seen. */
   repairLanguages: string[];
+  /**
+   * Archives left packed, and the directory each stands in for.
+   *
+   * Accumulated rather than derived: three discs each ship an `images_1.zip`,
+   * so each is copied into its own subdirectory and every one of them has to
+   * end up in the manifest or its illustrations become unreachable.
+   */
+  archives?: ArchiveMount[];
+}
+
+/** Mirrors `@dialogysx/catalogue`'s shape without depending on it. */
+export interface ArchiveMount {
+  archive: string;
+  serves: string;
+  entry: "basename" | "relative";
 }
 
 export const STATE_FILE = ".dialogysx-import.json";
@@ -65,6 +81,7 @@ export function emptyState(): ImportState {
     discs: {},
     catalogueLanguages: [],
     repairLanguages: [],
+    archives: [],
   };
 }
 
@@ -77,6 +94,8 @@ export interface DiscPlanEntry {
   component: string;
   /** Extract this archive rather than copying it. */
   extract?: { intoDir: string; keepEntry?: (name: string) => boolean };
+  /** Copied intact, and registered so readers look inside it. */
+  mount?: ArchiveMount;
 }
 
 export interface DiscPlan {
@@ -113,7 +132,7 @@ export async function planDisc(
   opts: DiscPlanOptions,
 ): Promise<DiscPlan> {
   const selected = new Set(opts.components);
-  const { languages, extractImages = true, extractDrawings = false } = opts;
+  const { languages, extractImages = false, extractDrawings = false } = opts;
   const entries: DiscPlanEntry[] = [];
   const conflicts: DiscPlan["conflicts"] = [];
   const unclaimed: DiscPlan["unclaimed"] = [];
@@ -149,26 +168,44 @@ export async function planDisc(
     tally[component.id] = t;
     if (!selected.has(component.id)) continue;
 
-    const extract = archiveTarget(dest, { extractImages, extractDrawings, selected, languages });
+    // Kept packed and read in place: 184,610 of the 228,515 files in a full
+    // tree come out of nine archives, and nothing needs them unpacked.
+    let mount: ArchiveMount | undefined;
+    let to = dest;
+    if (!extractImages && isImageArchive(dest)) {
+      const dir = dest.replace(/\/[^/]+\.zip$/, "");
+      // A per-disc subdirectory, because the names collide across discs and a
+      // plain copy would keep whichever landed last.
+      const ordinal = (state.archives ?? []).filter((a) => a.serves === dir).length + 1;
+      to = `${dir}/${ordinal}/${dest.slice(dir.length + 1)}`;
+      mount = { archive: to, serves: dir, entry: "basename" };
+    } else if (!extractDrawings && isDrawingArchive(dest)) {
+      mount = { archive: dest, serves: "dessins/100", entry: "basename" };
+    }
+
+    const extract = mount
+      ? undefined
+      : archiveTarget(dest, { extractImages, extractDrawings, selected, languages });
     if (!extract) {
       // A plain copy: skip an identical one, flag a different one.
-      const had = state.written[dest];
+      const had = state.written[to];
       if (had === file.size) {
         skipped += 1;
         continue;
       }
       if (had !== undefined && had !== file.size) {
-        conflicts.push({ to: dest, had, now: file.size });
+        conflicts.push({ to, had, now: file.size });
         continue;
       }
     }
 
     entries.push({
       from: file.path,
-      to: dest,
+      to,
       bytes: file.size,
       component: component.id,
       ...(extract ? { extract } : {}),
+      ...(mount ? { mount } : {}),
     });
     totalBytes += file.size;
   }
@@ -305,6 +342,12 @@ export async function executeDisc(
         bytes.slice(0, bytes.size).stream() as ReadableStream<Uint8Array>,
       );
       state.written[entry.to] = entry.bytes;
+      if (entry.mount) {
+        state.archives ??= [];
+        if (!state.archives.some((a) => a.archive === entry.mount!.archive)) {
+          state.archives.push(entry.mount);
+        }
+      }
       result.copied += 1;
       result.bytesWritten += entry.bytes;
       opts.onFileDone?.(entry.to);

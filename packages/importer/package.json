@@ -18,6 +18,9 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
+  "dependencies": {
+    "@dialogysx/raf": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "^22.13.1"
   }

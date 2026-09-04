@@ -40,7 +40,12 @@ export function importCommand(): Command<[string[]]> {
       'comma-separated component ids, or "all" / "min". See --list-components',
     )
     .option("--list-components", "describe the selectable components and stop", false)
-    .option("--no-extract-images", "copy image archives instead of extracting them")
+    .option(
+      "--extract-images",
+      "unpack the illustration archives instead of reading them in place — " +
+        "146,121 more files for the same bytes",
+      false,
+    )
     .option("--extract-drawings", "also unpack dessins/100.zip and eclate/100.zip", false)
     .option("-n, --dry-run", "show the plan and stop", false)
     .option("--no-resume", "re-copy files that already exist at the right size")
@@ -182,11 +187,10 @@ export function importCommand(): Command<[string[]]> {
 
         if (!opts.extractImages) {
           console.log(
-            chalk.yellow(
-              "\n  --no-extract-images given. Image archives from different discs share " +
-                "filenames\n  (mrnt/ru/d3k/images/images_1.zip exists on two discs with " +
-                "different content),\n  so copying them will lose one. Extraction is what " +
-                "merges them safely.",
+            chalk.dim(
+              "\n  Illustration and drawing archives are kept packed and read in place " +
+                "(one\n  Range request per file). That is 184,610 fewer files for the same " +
+                "bytes.\n  Pass --extract-images to unpack them instead.",
             ),
           );
         }
@@ -286,6 +290,7 @@ export function importCommand(): Command<[string[]]> {
             extractedEntries: result.extractedEntries,
             bytes: result.bytesWritten,
           },
+          archives: plan.archives,
         });
         await writeManifest(opts.out, manifest);
         console.log(

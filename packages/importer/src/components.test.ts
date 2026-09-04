@@ -16,8 +16,8 @@ describe("component routing", () => {
     ["dessins/TRepere.idx", "parts"],
     ["langue/fr/classicvar.utf", "criteria"],
     ["langue/fr/papv/papv", "criteria"],
-    ["dessins/100/1173/1173M06A.png", "drawings"],
-    ["dessins/100.zip", "drawings-archive"],
+    ["dessins/100/1173/1173M06A.png", "drawings-extracted"],
+    ["dessins/100.zip", "drawings"],
     ["eclate/100.zip", "exploded"],
     ["vignette/pr/100.zip", "exploded"],
     ["Dates/Dates", "dates"],
@@ -44,13 +44,17 @@ describe("component routing", () => {
   });
 
   it("has a home for the drawings and their duplicate archive, separately", () => {
-    // The discs ship the same 39,584 PNGs twice — unpacked under dessins/100/
-    // and again as dessins/100.zip. They must not land in one component, or
+    // The discs ship the same 38,488 PNGs twice — as the flat dessins/100.zip
+    // and again as a dessins/100/ tree bucketed by the first four characters
+    // of each name. They must not land in one component, or
     // there is no way to skip the redundant 694 MB.
-    expect(componentFor("dessins/100/0000/00000436.png")?.id).toBe("drawings");
-    expect(componentFor("dessins/100.zip")?.id).toBe("drawings-archive");
+    // The archive is the default now: one file instead of 38,489, read in
+    // place, and the same bytes. Extraction is the opt-out.
+    expect(componentFor("dessins/100/0000/00000436.png")?.id).toBe("drawings-extracted");
+    expect(componentFor("dessins/100.zip")?.id).toBe("drawings");
     expect(DEFAULT_COMPONENTS).toContain("drawings");
-    expect(DEFAULT_COMPONENTS).not.toContain("drawings-archive");
+    expect(DEFAULT_COMPONENTS).toContain("drawings");
+    expect(DEFAULT_COMPONENTS).not.toContain("drawings-extracted");
   });
 
   it("leaves pricing and labour times off by default", () => {

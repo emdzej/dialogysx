@@ -65,9 +65,22 @@ binary-searchable index. That is the shape of an HTTP `Range` request and of
 serve the vendor's own files, and the browser reads bytes out of them.
 
 Per language: ~17 MB of index files (preloaded), ~86 MB of data files (never
-fully downloaded), 720 MB of drawings as plain PNGs served individually, and
-repair documentation that already arrives as separate documents — 22,967
-structured XML procedures and 2,584 PDF manuals, so one procedure is one fetch.
+fully downloaded), and repair documentation that already arrives as separate
+documents, so one procedure is one fetch.
+
+**The media stays packed.** 184,610 of the 228,515 files in a full English tree
+come out of nine archives the vendor already ships — `dessins/100.zip` holds
+38,488 drawings, eight `images_*.zip` hold 146,121 illustrations — and none of
+them needs unpacking to be read. The importer copies them intact and the app
+reads one file per `Range` request, straight out of the zip. That takes a full
+import from **228,515 files to about 43,900** for the same bytes: fewer objects
+to host, and a copy that finishes.
+
+The trap, recorded because it is not obvious: the drawings ship in _two_
+layouts. `100.zip` stores `1132C000.png` flat while the tree stores
+`dessins/100/1132/1132C000.png`, so an archive cannot be addressed by stripping
+a prefix, and the manifest declares how to name an entry. Extracted trees keep
+working — the reader prefers a real file and falls back per file.
 
 Full reasoning in [`docs/plan.md`](docs/plan.md).
 

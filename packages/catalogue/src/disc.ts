@@ -5,7 +5,7 @@
  * unpacked static tree behind HTTP, and a directory the user picked in the
  * browser. Everything above this line is source-agnostic.
  */
-import { IndexedRAF, type Reader } from "@dialogysx/raf";
+import { IndexedRAF, type ByteSource, type Reader } from "@dialogysx/raf";
 import { DATASETS, LANGUAGE_DATASETS, type DatasetSpec } from "./datasets.js";
 
 export interface FileSource {
@@ -28,6 +28,16 @@ export interface FileSource {
    * like a mistake at every call site.
    */
   fileUrl?(relativePath: string): Promise<string | undefined>;
+  /**
+   * A sliceable handle, for reading an archive's central directory.
+   *
+   * Optional and separate from `open`: a `Reader` is `read(pos, len)`, which is
+   * what the catalogue's indexes want, while a zip reader wants something it
+   * can slice into sub-streams. HTTP and a picked directory can both supply
+   * one; Node's own adapter does too. A source without it simply cannot serve
+   * archived files, and `ArchiveSource` falls back to the extracted tree.
+   */
+  byteSource?(relativePath: string): Promise<ByteSource | undefined>;
 }
 
 /** A dataset resolved against a source, ready to query. */

@@ -1,10 +1,11 @@
 /**
  * `FileSource` over a local directory — a mounted disc or an unpacked tree.
  */
+import { openAsBlob } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import type { FileSource } from "@dialogysx/catalogue";
-import type { Reader } from "@dialogysx/raf";
+import type { ByteSource, Reader } from "@dialogysx/raf";
 import { NodeFileReader } from "@dialogysx/raf/node";
 
 async function exists(path: string): Promise<boolean> {
@@ -22,6 +23,19 @@ export class NodeDirectorySource implements FileSource {
   async open(relativePath: string): Promise<Reader | undefined> {
     const path = join(this.root, relativePath);
     return (await exists(path)) ? new NodeFileReader(path) : undefined;
+  }
+
+  /**
+   * A sliceable handle, so the CLI can read archives in place too — the same
+   * capability the browser has, which is what keeps `ArchiveSource` testable
+   * outside a tab.
+   */
+  async byteSource(relativePath: string): Promise<ByteSource | undefined> {
+    try {
+      return (await openAsBlob(join(this.root, relativePath))) as unknown as ByteSource;
+    } catch {
+      return undefined;
+    }
   }
 
   async readAll(relativePath: string): Promise<Uint8Array | undefined> {

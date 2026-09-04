@@ -16,6 +16,7 @@ import { DateBlock, isDateVariable, type DateGroup } from "./dates.js";
 import { findDataset } from "./datasets.js";
 import { Disc, type FileSource } from "./disc.js";
 import { Envelope, parseEnvelopeRecord } from "./envelope.js";
+import { ArchiveSource, type ArchiveManifest } from "./archive-source.js";
 import { PartSearch } from "./part-search.js";
 import {
   DocIndex,
@@ -173,6 +174,28 @@ export interface AssemblySection {
   domains: { code: string; label: string; assemblies: AssemblyEntry[] }[];
 }
 
+/**
+ * Wrap a source so packed archives are read in place.
+ *
+ * Reads `manifest.json` for the archive list. A tree with no manifest, or one
+ * that declares none, is returned untouched — the extracted layout still works
+ * and always did, which is what makes this safe to turn on for existing trees.
+ */
+async function wrapArchives(source: FileSource): Promise<FileSource> {
+  try {
+    const bytes = await source.readAll("manifest.json");
+    if (!bytes) return source;
+    const manifest = JSON.parse(new TextDecoder().decode(bytes)) as ArchiveManifest;
+    const mounts = manifest.archives;
+    if (!mounts || mounts.length === 0) return source;
+    return new ArchiveSource(source, mounts);
+  } catch {
+    // A malformed manifest is not worth refusing to open a tree over; the
+    // extracted paths, if present, still resolve.
+    return source;
+  }
+}
+
 export class CatalogueSession {
   private readonly disc: Disc;
   private readonly groupValues = new Map<PrGroup, GroupValues | undefined>();
@@ -207,7 +230,12 @@ export class CatalogueSession {
    * should still work.
    */
   static async open(source: FileSource, opts: SessionOptions = {}): Promise<CatalogueSession> {
-    const s = new CatalogueSession(source, opts.language ?? "fr");
+    // A tree may keep its drawings and illustrations packed, in which case the
+    // manifest says which archives stand in for which directories. Wrapping
+    // here rather than at every call site means nothing downstream has to know
+    // whether a file was extracted.
+    const wrapped = await wrapArchives(source);
+    const s = new CatalogueSession(wrapped, opts.language ?? "fr");
     const get = async (id: string) => {
       const spec = findDataset(id);
       if (!spec) return undefined;
@@ -223,21 +251,21 @@ export class CatalogueSession {
       typePr: await get("envelope-type-pr"),
     });
 
-    const vocabBytes = await source.readAll(`langue/${s.language}/classicvar.utf`);
+    const vocabBytes = await wrapped.readAll(`langue/${s.language}/classicvar.utf`);
     if (vocabBytes) s.vocabulary = CriteriaVocabulary.parse(vocabBytes);
 
     // Names are all optional: a `-c min` tree has none, and the interface
     // falls back to codes rather than failing.
-    const modelBytes = await source.readAll("pr/ListePRModele");
+    const modelBytes = await wrapped.readAll("pr/ListePRModele");
     if (modelBytes) s.models = PrModels.parse(modelBytes);
-    const menuBytes = await source.readAll(`langue/${s.language}/menu`);
+    const menuBytes = await wrapped.readAll(`langue/${s.language}/menu`);
     if (menuBytes) s.menu = Menu.parse(menuBytes);
     await s.loadPartNames(opts.country);
     await s.loadBrands();
     // Documentation is optional too: a tree imported without `repair-pdf` has
     // no `indexation/`, and the interface then offers no documents rather than
     // reporting a broken tree.
-    const familyBytes = await source.readAll("pr/FamilleModeleAll.dat");
+    const familyBytes = await wrapped.readAll("pr/FamilleModeleAll.dat");
     if (familyBytes) s.families = FamilyModels.parse(familyBytes, s.vocabulary);
     return s;
   }

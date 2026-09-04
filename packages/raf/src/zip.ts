@@ -225,3 +225,60 @@ export function crc32(bytes: Uint8Array, seed = 0): number {
   for (const b of bytes) c = CRC_TABLE[(c ^ b) & 0xff]! ^ (c >>> 8);
   return ~c >>> 0;
 }
+
+/**
+ * A `ByteSource` over HTTP, so an archive can be read without downloading it.
+ *
+ * `Blob` and `File` satisfy `ByteSource` already; this is the missing third
+ * backend. Each `slice` is one `Range` request, and `stream()` hands back the
+ * response body rather than buffering it — so a 52 MB entry inside a 945 MB
+ * archive costs one entry's worth of memory.
+ *
+ * Requires the host to honour `Range`, and says so loudly rather than reading
+ * the wrong bytes, exactly as `HttpRangeReader` does.
+ */
+export function httpByteSource(
+  url: string,
+  size: number,
+  fetchImpl: typeof fetch = (input, init) => globalThis.fetch(input, init),
+): ByteSource {
+  return {
+    size,
+    slice(start: number, end?: number) {
+      const last = (end ?? size) - 1;
+      const request = async (): Promise<Response> => {
+        if (last < start) {
+          // An empty range is not a valid `Range` header, and asking for one
+          // would get the whole file back.
+          return new Response(new Uint8Array(0));
+        }
+        const res = await fetchImpl(url, { headers: { Range: `bytes=${start}-${last}` } });
+        if (res.status !== 206) {
+          throw new Error(
+            `GET ${url} Range bytes=${start}-${last}: expected 206, got ${res.status}` +
+              ` — the host is ignoring Range requests`,
+          );
+        }
+        return res;
+      };
+      return {
+        async arrayBuffer(): Promise<ArrayBuffer> {
+          return await (await request()).arrayBuffer();
+        },
+        stream(): unknown {
+          // Deferred: the request is issued when the stream is first pulled,
+          // so a caller that never reads it costs nothing.
+          let inner: ReadableStreamDefaultReader<Uint8Array> | undefined;
+          return new ReadableStream<Uint8Array>({
+            async pull(controller) {
+              inner ??= ((await request()).body ?? new ReadableStream()).getReader();
+              const { done, value } = await inner.read();
+              if (done) controller.close();
+              else controller.enqueue(value);
+            },
+          });
+        },
+      };
+    },
+  };
+}

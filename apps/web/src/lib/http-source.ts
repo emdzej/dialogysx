@@ -14,7 +14,9 @@ import {
   assertNotHtml,
   BytesReader,
   HttpRangeReader,
+  httpByteSource,
   NotDataError,
+  type ByteSource,
   type Reader,
 } from "@dialogysx/raf";
 
@@ -74,6 +76,23 @@ export class HttpTreeSource implements FileSource {
    */
   async fileUrl(relativePath: string): Promise<string | undefined> {
     return this.url(relativePath);
+  }
+
+  /**
+   * A sliceable handle, for reading an archive in place.
+   *
+   * The size comes from a `HEAD` first, because a zip is read from its *end*:
+   * the end-of-central-directory record is the last thing in the file, so
+   * there is nowhere to start without knowing where the end is.
+   */
+  async byteSource(relativePath: string): Promise<ByteSource | undefined> {
+    const url = this.url(relativePath);
+    const reader = new HttpRangeReader(url);
+    try {
+      return httpByteSource(url, await reader.size());
+    } catch {
+      return undefined;
+    }
   }
 
   /**

@@ -7,7 +7,7 @@
  * the UI should branch on.
  */
 import type { FileSource } from "@dialogysx/catalogue";
-import { BlobReader, type Reader } from "@dialogysx/raf";
+import { BlobReader, type ByteSource, type Reader } from "@dialogysx/raf";
 
 export function isSupported(): boolean {
   return typeof globalThis.showDirectoryPicker === "function";
@@ -67,6 +67,15 @@ export class LocalDirectorySource implements FileSource {
   async readAll(relativePath: string): Promise<Uint8Array | undefined> {
     const file = await this.resolve(relativePath);
     return file === undefined ? undefined : new Uint8Array(await file.arrayBuffer());
+  }
+
+  /**
+   * A `File` *is* a `Blob`, so it satisfies `ByteSource` as it stands — which
+   * is what makes reading a 945 MB archive off local disk cost only the slices
+   * actually wanted.
+   */
+  async byteSource(relativePath: string): Promise<ByteSource | undefined> {
+    return (await this.resolve(relativePath)) as unknown as ByteSource | undefined;
   }
 
   /**

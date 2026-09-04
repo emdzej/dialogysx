@@ -16,6 +16,7 @@ import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { join, posix, relative, sep } from "node:path";
 import { COMPONENTS, componentFor, isJunk, type ComponentSpec } from "@dialogysx/importer";
+import type { ArchiveMount } from "@dialogysx/catalogue";
 import {
   destination,
   imageEntryFilter,
@@ -78,6 +79,13 @@ export interface Plan {
   /** Language codes that will exist under `mrnt/` when this plan is applied. */
   mrntLanguages: string[];
   catalogueLanguages: string[];
+  /**
+   * Archives left packed, and the directory each stands in for.
+   *
+   * Written into the manifest so a reader knows to look inside them. Without
+   * this the tree would appear to be missing every drawing and illustration.
+   */
+  archives: ArchiveMount[];
 }
 
 export interface PlanOptions {
@@ -123,7 +131,7 @@ async function sha256File(path: string): Promise<string> {
 }
 
 export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): Promise<Plan> {
-  const { components, languages, extractImages = true, extractDrawings = false } = opts;
+  const { components, languages, extractImages = false, extractDrawings = false } = opts;
   const selected = new Set(components ?? []);
   const tally = new Map<string, { files: number; bytes: number }>();
   const unclaimed: { dest: string; bytes: number }[] = [];
@@ -132,7 +140,10 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
   const mrntLanguages = new Set<string>();
   const catalogueLanguages = new Set<string>();
 
+  const archives: ArchiveMount[] = [];
+  let discOrdinal = 0;
   for (const source of sources) {
+    discOrdinal += 1;
     if (source.kind === "mrnt") {
       for (const l of source.languages) {
         if (!languages || languages.includes(l.code)) mrntLanguages.add(l.code);
@@ -174,7 +185,22 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
       if (!selected.has(component.id)) continue;
 
       let action: Action;
-      if (extractImages && isImageArchive(dest)) {
+      if (!extractImages && isImageArchive(dest)) {
+        // Copied into a per-disc subdirectory rather than merged, because the
+        // names collide: `images_1.zip` exists on three of the English discs
+        // with different contents, and a plain copy would keep whichever
+        // landed last. The ordinal is the disc's position in this import,
+        // which is stable because it is recorded in the manifest alongside.
+        const dir = dest.replace(/\/[^/]+\.zip$/, "");
+        const to = `${dir}/${discOrdinal}/${dest.slice(dir.length + 1)}`;
+        archives.push({ archive: to, serves: dir, entry: "basename" });
+        action = { type: "copy", from, to, bytes, source, component: component.id };
+      } else if (!extractDrawings && isDrawingArchive(dest)) {
+        // The flat archive serves the bucketed tree the app asks for, which is
+        // why the entry naming has to be declared rather than derived.
+        archives.push({ archive: dest, serves: "dessins/100", entry: "basename" });
+        action = { type: "copy", from, to: dest, bytes, source, component: component.id };
+      } else if (extractImages && isImageArchive(dest)) {
         action = {
           type: "extract",
           from,
@@ -235,9 +261,13 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
       // Only copies can collide on a path; extractions collide on entry names,
       // which is checked while extracting because it needs the archives open.
       if (action.type === "copy") {
-        const list = byDest.get(dest);
+        // Keyed on where it will actually be *written*, not on the path it
+        // came from. An image archive is copied into a per-disc subdirectory
+        // precisely so three `images_1.zip` can coexist; keying on the source
+        // path reported them as a collision that the plan had already solved.
+        const list = byDest.get(action.to);
         if (list) list.push(action);
-        else byDest.set(dest, [action]);
+        else byDest.set(action.to, [action]);
       }
     }
   }
@@ -277,5 +307,6 @@ export async function buildPlan(sources: DiscSource[], opts: PlanOptions = {}): 
     totalBytes: kept.reduce((n, a) => n + a.bytes, 0),
     mrntLanguages: [...mrntLanguages].sort(),
     catalogueLanguages: [...catalogueLanguages].sort(),
+    archives,
   };
 }

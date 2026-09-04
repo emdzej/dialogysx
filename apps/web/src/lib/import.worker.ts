@@ -165,6 +165,10 @@ async function writeManifest(req: FinishRequest): Promise<void> {
       versions,
     })),
     catalogueLanguages: [...req.state.catalogueLanguages].sort(),
+    // Without this the tree reads as having no drawings and no illustrations.
+    ...(req.state.archives && req.state.archives.length > 0
+      ? { archives: req.state.archives }
+      : {}),
     repairLanguages: [...req.state.repairLanguages].sort(),
     datasets: [],
     counts: {

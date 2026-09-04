@@ -8,7 +8,7 @@
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { DATASETS, Disc, LANGUAGE_DATASETS } from "@dialogysx/catalogue";
+import { DATASETS, Disc, LANGUAGE_DATASETS, type ArchiveMount } from "@dialogysx/catalogue";
 import { NodeDirectorySource } from "../node-source.js";
 
 export interface Manifest {
@@ -31,6 +31,14 @@ export interface Manifest {
   /** Datasets actually present, with their key counts. */
   datasets: { id: string; keyLength: number; depth: number; keys: number; language?: string }[];
   counts: { files: number; extractedEntries: number; bytes: number };
+  /**
+   * Archives the tree keeps packed, and the directory each stands in for.
+   *
+   * A reader that ignores this sees a tree with no drawings and no
+   * illustrations, so it is not optional decoration — `ArchiveSource` is what
+   * makes those paths resolve.
+   */
+  archives?: ArchiveMount[];
 }
 
 /**
@@ -47,6 +55,8 @@ export async function buildManifest(
     sources: { kind: string; label: string; root: string; versions: Record<string, string> }[];
     repairLanguages: string[];
     counts: { files: number; extractedEntries: number; bytes: number };
+    /** Archives left packed, and which directory each stands in for. */
+    archives?: ArchiveMount[];
   },
 ): Promise<Manifest> {
   const disc = new Disc(new NodeDirectorySource(outRoot));
@@ -87,6 +97,7 @@ export async function buildManifest(
     repairLanguages: input.repairLanguages,
     datasets,
     counts: input.counts,
+    ...(input.archives && input.archives.length > 0 ? { archives: input.archives } : {}),
   };
 }
 
