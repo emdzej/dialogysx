@@ -14,6 +14,7 @@
   "dependencies": {
     "@dialogysx/catalogue": "workspace:*",
     "@dialogysx/core": "workspace:*",
+    "@dialogysx/importer": "workspace:*",
     "@dialogysx/raf": "workspace:*",
     "@lucide/svelte": "^1.40.0"
   },

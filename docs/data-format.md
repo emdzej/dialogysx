@@ -553,11 +553,11 @@ Implemented in `packages/catalogue/src/repair.ts`, transcribed from
 `UI.isApplicable` and `FamilyModels`. Three lookups, none of them guessable from
 the data alone:
 
-| Step | File | Java |
-| --- | --- | --- |
-| model name → family code | `pr/FamilleModeleAll.dat` | `FamilyModels.init` |
-| family → document tree | `mrnt/<lg>/d3k/indexation/ArboRech-<MR\|NT>[-pdf]-<FAMILY>.xml` | `DAOArboRechercheXml.getArboRecherche` |
-| document → file | `mrnt/<lg>/d3k/1-<MR\|NT>/<numero>.pdf` | `ArboRechercheSaxHandler` line 114 |
+| Step                     | File                                                            | Java                                   |
+| ------------------------ | --------------------------------------------------------------- | -------------------------------------- |
+| model name → family code | `pr/FamilleModeleAll.dat`                                       | `FamilyModels.init`                    |
+| family → document tree   | `mrnt/<lg>/d3k/indexation/ArboRech-<MR\|NT>[-pdf]-<FAMILY>.xml` | `DAOArboRechercheXml.getArboRecherche` |
+| document → file          | `mrnt/<lg>/d3k/1-<MR\|NT>/<numero>.pdf`                         | `ArboRechercheSaxHandler` line 114     |
 
 `FamilleModeleAll.dat` is a properties file with a **colon** separator and
 **1-based** indices into `classicvar`'s `MOD_` list — `FamilyModels.init` reads
@@ -589,17 +589,17 @@ Measured over the 114 English PDF indexes of the 4.55 set — 87,152 topics,
 blocks:
 
 | Variable | Clauses | Answerable from the vehicle? |
-| --- | --- | --- |
-| `MOT3` | 680,323 | yes — engine code |
-| `BVI3` | 494,448 | yes — gearbox code |
-| `$TYC` | 344,531 | **no** |
-| `MOTI` | 57,176 | yes — engine index |
-| `$PHD` | 56,520 | **no** |
-| `BVII` | 5,114 | yes — gearbox index |
+| -------- | ------- | ---------------------------- |
+| `MOT3`   | 680,323 | yes — engine code            |
+| `BVI3`   | 494,448 | yes — gearbox code           |
+| `$TYC`   | 344,531 | **no**                       |
+| `MOTI`   | 57,176  | yes — engine index           |
+| `$PHD`   | 56,520  | **no**                       |
+| `BVII`   | 5,114   | yes — gearbox index          |
 
 `DialogysVariable.setVariableSecondaire` marks the `$` ones, and
 `VehiculeContext` has no entry for them, so the original's own navigation skips
-them too. They are asked as a dialog *later*, when a document is opened, by
+them too. They are asked as a dialog _later_, when a document is opened, by
 `AskVariablePane.askForVariableByInternalApplicability`, and only for that
 document's internal applicability. A document restricted solely by `$TYC` is
 therefore offered for every vehicle — in the original as much as here.
@@ -647,13 +647,13 @@ this data: only the chapter-flavour `organe` index ships.
 
 Five discs, `mrnt/` containing only `en`:
 
-| Disc | Contents |
-| --- | --- |
+| Disc  | Contents                                                                 |
+| ----- | ------------------------------------------------------------------------ |
 | DVD-1 | catalogue: `pr/` (160 groups), `langue/` (22 languages), drawings, dates |
-| DVD-2 | 24,732 chapter XML + 720 `NTI-EN` PDFs, 1,879 chapter directories |
-| DVD-3 | 15,322 chapter XML, 1,418 directories, 2 illustration archives |
-| DVD-4 | 5 illustration archives only |
-| DVD-5 | **1,152 `1-MR` manuals + 978 `1-NT` notes** + 361 `indexation/` files |
+| DVD-2 | 24,732 chapter XML + 720 `NTI-EN` PDFs, 1,879 chapter directories        |
+| DVD-3 | 15,322 chapter XML, 1,418 directories, 2 illustration archives           |
+| DVD-4 | 5 illustration archives only                                             |
+| DVD-5 | **1,152 `1-MR` manuals + 978 `1-NT` notes** + 361 `indexation/` files    |
 
 Illustrations total 146,121 files, 6.39 GB uncompressed, across eight archives
 on three discs — and **three of them are named `images_1.zip`**, so the

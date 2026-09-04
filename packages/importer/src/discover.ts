@@ -91,10 +91,12 @@ export async function identify(fs: SourceFs, root: string): Promise<DiscSource |
       root,
       kind: "catalogue",
       dataDir: joinPath("dialogys", "data"),
-      languages: (await dirs(fs, joinPath(root, "dialogys", "data", "langue"))).sort().map((code) => ({
-        code,
-        parts: ["langue"],
-      })),
+      languages: (await dirs(fs, joinPath(root, "dialogys", "data", "langue")))
+        .sort()
+        .map((code) => ({
+          code,
+          parts: ["langue"],
+        })),
       label: "parts catalogue",
       versions: await readVersions(fs, joinPath(root, "dialogys", "data", "update")),
     };

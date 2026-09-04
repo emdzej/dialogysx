@@ -12,6 +12,7 @@
    * rebuilt into a different shape to hold it.
    */
   import FolderOpen from "@lucide/svelte/icons/folder-open";
+  import HardDrive from "@lucide/svelte/icons/hard-drive";
   import Link from "@lucide/svelte/icons/link";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import X from "@lucide/svelte/icons/x";
@@ -31,6 +32,8 @@
     onPickFolder: () => void;
     onReopenFolder: () => void;
     onForgetFolder: () => void;
+    /** Absent when the browser cannot write, so the offer is not made. */
+    onImport?: () => void;
     onClose: () => void;
   }
 
@@ -45,6 +48,7 @@
     onPickFolder,
     onReopenFolder,
     onForgetFolder,
+    onImport,
     onClose,
   }: Props = $props();
 
@@ -172,6 +176,21 @@
           {/if}
         {/if}
       </section>
+
+      {#if onImport}
+        <section>
+          <h2><HardDrive size={14} strokeWidth={1.9} /> No tree yet?</h2>
+          <p class="hint">
+            Build one from mounted Dialogys discs, here in the browser — no command line. You
+            will be asked for a target folder and then for each disc in turn.
+          </p>
+          <div class="row">
+            <button type="button" onclick={onImport} data-testid="settings-import">
+              Import from discs&hellip;
+            </button>
+          </div>
+        </section>
+      {/if}
 
       <p class="note">
         <!-- Said plainly because the asymmetry is surprising: a URL reopens by

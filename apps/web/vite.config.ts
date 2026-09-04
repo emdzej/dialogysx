@@ -140,12 +140,20 @@ const manifest = JSON.parse(
 ) as { version: string; repository?: { url?: string } };
 
 export default defineConfig({
+  /*
+   * Where the site is served from.
+   *
+   * A custom domain serves at the root; `<user>.github.io/<repo>/` serves under
+   * a prefix. `base` is baked into the built HTML and a build cannot be
+   * relocated afterwards, so the deploy workflow decides this from whether
+   * `public/CNAME` exists and passes it in. Getting it wrong is nasty rather
+   * than obvious: `index.html` still returns 200 and every asset 404s.
+   */
+  base: process.env.BASE_PATH ?? "/",
   plugins: [svelte(), dataTree()],
   define: {
     __APP_VERSION__: JSON.stringify(manifest.version),
-    __REPO_URL__: JSON.stringify(
-      manifest.repository?.url ?? "https://github.com/emdzej/dialogysx",
-    ),
+    __REPO_URL__: JSON.stringify(manifest.repository?.url ?? "https://github.com/emdzej/dialogysx"),
   },
   server: {
     watch: {

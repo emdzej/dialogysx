@@ -374,12 +374,7 @@ export function documentApplies(doc: DocRef, ctx: DocContext): boolean {
 // --------------------------------------------------------------------------
 
 /** `mrnt/<lg>/d3k/indexation/ArboRech-<kind>[-pdf]-<family>.xml`. */
-export function docIndexPath(
-  language: string,
-  kind: DocKind,
-  family: string,
-  pdf = true,
-): string {
+export function docIndexPath(language: string, kind: DocKind, family: string, pdf = true): string {
   return `mrnt/${language}/d3k/indexation/ArboRech-${kind}${pdf ? "-pdf" : ""}-${family}.xml`;
 }
 

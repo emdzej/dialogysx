@@ -15,8 +15,7 @@ const utf8 = (s: string) => new TextEncoder().encode(s);
 /** Just enough vocabulary to resolve `MOD_` indices. */
 function vocabulary(models: string[]): CriteriaVocabulary {
   return {
-    get: (code: string) =>
-      code === "MOD_" ? { code, label: "Model", values: models } : undefined,
+    get: (code: string) => (code === "MOD_" ? { code, label: "Model", values: models } : undefined),
   } as unknown as CriteriaVocabulary;
 }
 
@@ -192,14 +191,10 @@ describe("applicability", () => {
 
 describe("paths", () => {
   it("builds the index and document paths the original uses", () => {
-    expect(docIndexPath("en", "MR", "X06")).toBe(
-      "mrnt/en/d3k/indexation/ArboRech-MR-pdf-X06.xml",
-    );
+    expect(docIndexPath("en", "MR", "X06")).toBe("mrnt/en/d3k/indexation/ArboRech-MR-pdf-X06.xml");
     expect(docIndexPath("en", "NT", "X06", false)).toBe(
       "mrnt/en/d3k/indexation/ArboRech-NT-X06.xml",
     );
-    expect(docPdfPath("en", "MR", "MR-305-TWINGO-3")).toBe(
-      "mrnt/en/d3k/1-MR/MR-305-TWINGO-3.pdf",
-    );
+    expect(docPdfPath("en", "MR", "MR-305-TWINGO-3")).toBe("mrnt/en/d3k/1-MR/MR-305-TWINGO-3.pdf");
   });
 });

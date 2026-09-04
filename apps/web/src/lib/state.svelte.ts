@@ -546,8 +546,7 @@ export class AppState {
       // that does; showing it with only the matching documents is more useful
       // than dropping it.
       const docs = el.docs.filter(
-        (d) =>
-          d.title.toLowerCase().includes(needle) || d.numero.toLowerCase().includes(needle),
+        (d) => d.title.toLowerCase().includes(needle) || d.numero.toLowerCase().includes(needle),
       );
       if (docs.length > 0) out.push({ ...el, docs });
     }

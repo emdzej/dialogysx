@@ -10,7 +10,13 @@
  * across every dataset, gzipped on the wire.
  */
 import type { FileSource } from "@dialogysx/catalogue";
-import { assertNotHtml, BytesReader, HttpRangeReader, NotDataError, type Reader } from "@dialogysx/raf";
+import {
+  assertNotHtml,
+  BytesReader,
+  HttpRangeReader,
+  NotDataError,
+  type Reader,
+} from "@dialogysx/raf";
 
 export interface HttpSourceOptions {
   /** Base URL of the tree, i.e. the URL that stands in for `dialogys/data`. */

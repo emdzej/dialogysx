@@ -22,9 +22,7 @@ import {
 import { NodeDirectorySource } from "./node-source.js";
 
 /** `ArboRech-MR-pdf-X06.xml` -> kind, whether it is the PDF index, family. */
-function parseIndexName(
-  name: string,
-): { kind: DocKind; pdf: boolean; family: string } | undefined {
+function parseIndexName(name: string): { kind: DocKind; pdf: boolean; family: string } | undefined {
   const m = /^ArboRech-(MR|NT)(-pdf)?-(.+)\.xml$/.exec(name);
   if (!m) return undefined;
   return { kind: m[1] as DocKind, pdf: m[2] !== undefined, family: m[3]! };
@@ -64,9 +62,7 @@ export function docsCommand(): Command<[string | undefined]> {
       const names = (await readdir(indexDir).catch(() => [] as string[])).sort();
       if (names.length === 0) {
         console.error(
-          chalk.red(
-            `${indexDir}: no indexes. Import with the "repair-pdf" component to get them.`,
-          ),
+          chalk.red(`${indexDir}: no indexes. Import with the "repair-pdf" component to get them.`),
         );
         process.exitCode = 1;
         return;
@@ -193,9 +189,7 @@ export function docsCommand(): Command<[string | undefined]> {
           (byVar.length === 0
             ? chalk.dim("none")
             : top.map(([v, n]) => `${chalk.bold(v)}×${n.toLocaleString()}`).join(", ")) +
-          (byVar.length > top.length
-            ? chalk.dim(` … ${byVar.length - top.length} more`)
-            : ""),
+          (byVar.length > top.length ? chalk.dim(` … ${byVar.length - top.length} more`) : ""),
       );
       if (secondary > 0) {
         console.log(
@@ -248,7 +242,9 @@ export function docsCommand(): Command<[string | undefined]> {
         );
       }
       if (empty.length > 0) {
-        console.log(chalk.dim(`  ${empty.length} indexes are an empty <arborech/> — nothing to read`));
+        console.log(
+          chalk.dim(`  ${empty.length} indexes are an empty <arborech/> — nothing to read`),
+        );
       }
       let broken = false;
       if (unparsed.length > 0) {

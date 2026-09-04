@@ -15,7 +15,10 @@ function fakeFetch(status: number, headers: Record<string, string>, body = new U
 
 describe("HttpRangeReader", () => {
   it("reads its size from content-length", async () => {
-    const { impl, calls } = fakeFetch(200, { "content-type": "application/octet-stream", "content-length": "4096" });
+    const { impl, calls } = fakeFetch(200, {
+      "content-type": "application/octet-stream",
+      "content-length": "4096",
+    });
     const reader = new HttpRangeReader("https://example.test/pr/PlancheN.idx", impl);
     expect(await reader.size()).toBe(4096);
     // Cached: a second call must not cost another round trip.
@@ -29,7 +32,10 @@ describe("HttpRangeReader", () => {
     // so a mistyped base URL looks like a file that exists. Parsed as an index
     // that produced "Offset is outside the bounds of the DataView" instead of
     // "that is not a data tree".
-    const { impl } = fakeFetch(200, { "content-type": "text/html; charset=utf-8", "content-length": "365" });
+    const { impl } = fakeFetch(200, {
+      "content-type": "text/html; charset=utf-8",
+      "content-length": "365",
+    });
     const reader = new HttpRangeReader("https://example.test/nope/pr/PlancheN.idx", impl);
     await expect(reader.size()).rejects.toThrow(NotDataError);
     // The URL has to be in the message; "not a data tree" without saying which
@@ -38,7 +44,11 @@ describe("HttpRangeReader", () => {
   });
 
   it("refuses a host that ignores Range instead of reading the wrong bytes", async () => {
-    const { impl } = fakeFetch(200, { "content-type": "application/octet-stream" }, new Uint8Array([1, 2, 3]));
+    const { impl } = fakeFetch(
+      200,
+      { "content-type": "application/octet-stream" },
+      new Uint8Array([1, 2, 3]),
+    );
     const reader = new HttpRangeReader("https://example.test/pr/PlancheN", impl);
     await expect(reader.read(10, 3)).rejects.toThrow(/ignoring Range/);
   });

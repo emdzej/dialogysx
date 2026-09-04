@@ -241,7 +241,7 @@ things (§5 of the format doc).
   applicability and paths are in `packages/catalogue/src/repair.ts`, transcribed
   from `DAOArboRechercheXml` / `ArboRechercheSaxHandler` /
   `AbstractApplicability` / `FamilyModels` — see §5.0A of the format doc for
-  what each file contributes and why the applicability rule is the *opposite* of
+  what each file contributes and why the applicability rule is the _opposite_ of
   the parts side (an unanswerable variable is skipped, not asked).
   `dialogysx docs` sweeps every index and reports what it could not resolve; the
   interface has a second tab with a topic list, a document list and a viewer.
@@ -258,7 +258,7 @@ things (§5 of the format doc).
   (`langue/<lg>/outillage/Outillage.pdf`, `PRPer/PR0401.pdf`, DVD-0's help),
   and a search across document titles rather than per-model.
 
-- **The D3K/SPI XML procedures — 37,695 in the English set.** The *index* side
+- **The D3K/SPI XML procedures — 37,695 in the English set.** The _index_ side
   is built and swept (`dialogysx docs --xml`): `DocIndex` reads both flavours,
   including the three differences that fail silently (§5.0B). What remains is
   the renderer. Parse SPI/D3K to a render model with `fast-xml-parser`, using

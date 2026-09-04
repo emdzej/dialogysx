@@ -15,6 +15,10 @@
  */
 interface FileSystemDirectoryHandle {
   entries(): AsyncIterableIterator<[string, FileSystemDirectoryHandle | FileSystemFileHandle]>;
+  readonly kind: "directory";
+  readonly name: string;
+  getDirectoryHandle(name: string, opts?: { create?: boolean }): Promise<FileSystemDirectoryHandle>;
+  getFileHandle(name: string, opts?: { create?: boolean }): Promise<FileSystemFileHandle>;
   /**
    * Permission state for a handle restored from IndexedDB.
    *
@@ -24,6 +28,25 @@ interface FileSystemDirectoryHandle {
    */
   queryPermission?(opts?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
   requestPermission?(opts?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
+}
+
+interface FileSystemFileHandle {
+  readonly kind: "file";
+  readonly name: string;
+  getFile(): Promise<File>;
+  /**
+   * Staged write: a temporary file that replaces the target on `close()`.
+   *
+   * Not in TypeScript's DOM lib, and typed here as the narrow thing the
+   * importer uses — a `WritableStream` it can `pipeTo`, plus `write`/`close`
+   * for the small files.
+   */
+  createWritable(opts?: { keepExistingData?: boolean }): Promise<
+    WritableStream<Uint8Array> & {
+      write(data: BufferSource): Promise<void>;
+      close(): Promise<void>;
+    }
+  >;
 }
 
 declare var showDirectoryPicker:

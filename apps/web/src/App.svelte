@@ -25,6 +25,8 @@
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
   import SettingsIcon from "@lucide/svelte/icons/settings";
+  import Wrench from "@lucide/svelte/icons/wrench";
+  import Import from "./lib/Import.svelte";
   import Settings from "./lib/Settings.svelte";
   import { HttpTreeSource } from "./lib/http-source";
   import { isSupported, LocalDirectorySource, revokeImageUrl } from "./lib/local-source";
@@ -43,6 +45,7 @@
 
   let aboutOpen = $state(false);
   let settingsOpen = $state(false);
+  let importOpen = $state(false);
   let saved = $state<SavedSource | undefined>(undefined);
   /** A remembered folder the browser will not let us read without a click. */
   let needsPermission = $state(false);
@@ -212,6 +215,25 @@
   <About onClose={() => (aboutOpen = false)} />
 {/if}
 
+{#if importOpen}
+  <Import
+    onClose={() => (importOpen = false)}
+    onFinished={async (handle) => {
+      // Open what was just built, and remember it the same way a picked folder
+      // is remembered — the import already has write permission, so read
+      // access is granted and no second prompt appears.
+      importOpen = false;
+      settingsOpen = false;
+      await app.open(new LocalDirectorySource(handle), handle.name);
+      if (app.status.kind !== "error") {
+        saved = { kind: "folder", name: handle.name };
+        saveSettings({ source: saved, language: app.language });
+        await saveDirectoryHandle(handle);
+      }
+    }}
+  />
+{/if}
+
 {#if settingsOpen}
   <Settings
     {saved}
@@ -224,6 +246,7 @@
     onPickFolder={() => pickFolder()}
     onReopenFolder={() => reopenFolder()}
     onForgetFolder={() => forgetFolder()}
+    onImport={isSupported() ? () => (importOpen = true) : undefined}
     onClose={() => (settingsOpen = false)}
   />
 {/if}
@@ -274,6 +297,14 @@
       <!-- The source controls live in the settings dialog now. They were a
            permanent fixture in the bar for a choice made once, and the tree in
            use is already named in the chrome below. -->
+      <button
+        class="gear"
+        onclick={() => (importOpen = true)}
+        title="Import from discs"
+        aria-haspopup="dialog"
+        aria-label="Import from discs"
+        data-testid="tools-open"><Wrench size={16} strokeWidth={1.9} /></button
+      >
       <button
         class="gear"
         onclick={() => (settingsOpen = true)}
@@ -589,6 +620,10 @@
     </div>
     {/if}
   {/if}
+
+  <!-- The one decorative element, at the foot. Not under the header: there the
+       blue third would vanish into the blue bar and only red would read. -->
+  <div class="tricolour" aria-hidden="true"></div>
 </main>
 
 <style>
@@ -633,6 +668,23 @@
     display: flex;
     flex-direction: column;
     background: var(--paper);
+  }
+  /*
+   * `margin-top: auto` rather than a fixed footer: it sits at the bottom of the
+   * viewport when the content is short and after the content when it is long,
+   * so a long parts table scrolls past it instead of under it.
+   */
+  .tricolour {
+    margin-top: auto;
+    flex: none;
+    height: 4px;
+    border-top: 1px solid var(--rule);
+    background: linear-gradient(
+      to right,
+      var(--blue) 0 33.333%,
+      #fff 33.333% 66.666%,
+      var(--red) 66.666% 100%
+    );
   }
   header {
     background: var(--blue);
