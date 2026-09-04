@@ -45,11 +45,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/raf
       '@emdzej/csfs-manifest':
-        specifier: link:../../../csfs/packages/manifest
-        version: link:../../../csfs/packages/manifest
+        specifier: ^0.1.0
+        version: 0.1.0
       '@emdzej/csfs-node':
-        specifier: link:../../../csfs/packages/node
-        version: link:../../../csfs/packages/node
+        specifier: ^0.1.0
+        version: 0.1.0
       chalk:
         specifier: ^6.0.0
         version: 6.0.0
@@ -85,23 +85,23 @@ importers:
         specifier: workspace:*
         version: link:../../packages/raf
       '@emdzej/csfs-core':
-        specifier: link:../../../csfs/packages/core
-        version: link:../../../csfs/packages/core
+        specifier: ^0.1.0
+        version: 0.1.0
       '@emdzej/csfs-fsa':
-        specifier: link:../../../csfs/packages/fsa
-        version: link:../../../csfs/packages/fsa
+        specifier: ^0.1.0
+        version: 0.1.0
       '@emdzej/csfs-http':
-        specifier: link:../../../csfs/packages/http
-        version: link:../../../csfs/packages/http
+        specifier: ^0.1.0
+        version: 0.1.0
       '@emdzej/csfs-manifest':
-        specifier: link:../../../csfs/packages/manifest
-        version: link:../../../csfs/packages/manifest
+        specifier: ^0.1.0
+        version: 0.1.0
       '@emdzej/csfs-opfs':
-        specifier: link:../../../csfs/packages/opfs
-        version: link:../../../csfs/packages/opfs
+        specifier: ^0.1.0
+        version: 0.1.0
       '@emdzej/csfs-zip':
-        specifier: link:../../../csfs/packages/zip
-        version: link:../../../csfs/packages/zip
+        specifier: ^0.1.0
+        version: 0.1.0
       '@lucide/svelte':
         specifier: ^1.40.0
         version: 1.40.0(svelte@5.57.0)
@@ -158,6 +158,27 @@ packages:
     resolution: {integrity: sha512-yeJlba62xqmkgELUsn7356MEnzLLu/fw2x4lofFqGnXh6YysRdEs2BaLeLtg1+KU0AXvMeqQvTTp+3hBEBK+EA==}
     peerDependencies:
       commander: ~15.0.0
+
+  '@emdzej/csfs-core@0.1.0':
+    resolution: {integrity: sha512-WJQx2ZFcSfZZBtIX0OOvDHOz89Dk81u5S/jB8vtGAxjKMmbwm4z4NhPoh/bTYan9pV4Ooh7gh63DFAyZzCn7jQ==}
+
+  '@emdzej/csfs-fsa@0.1.0':
+    resolution: {integrity: sha512-tK6YaxTvD9hMwyCNuismHC3E+XaRmLTJTDwZ48ooxmLwxl7AV12yxFYqNs54kBW1HoDBf/z+Lf6FS5Z8+kCeJA==}
+
+  '@emdzej/csfs-http@0.1.0':
+    resolution: {integrity: sha512-Kunca38qW3/SamWqehwMSU1x6u9jcQhyGaRtxKrikCEGsw38UWPg6/lmw80rXeLzOg96BaWsbxh2JuNeCSl+PA==}
+
+  '@emdzej/csfs-manifest@0.1.0':
+    resolution: {integrity: sha512-5Hqu5GoBgCheFyCFgAtSaFfzv3iOHjWZnD2u6ZXf19zl544RifmqztOaQaTK8dHrLvobWE4WbyROzzVEhIzYsQ==}
+
+  '@emdzej/csfs-node@0.1.0':
+    resolution: {integrity: sha512-dH5RCWC/+fS8xgXMPt9rO2EXf4wRgGA74JH5nlSSDJMXFkUoi/lNrq6v8sQtflHaJyCfql2kGIn7dSsLsn+CwQ==}
+
+  '@emdzej/csfs-opfs@0.1.0':
+    resolution: {integrity: sha512-P1A6q+v3eI3UVn7mp3n1wTVCyHqtAhIkt/Yzbu5r4Isg/dJbHPRaxhQyS8836pByCz4vwuUE1s3ppHaP44ewKA==}
+
+  '@emdzej/csfs-zip@0.1.0':
+    resolution: {integrity: sha512-m6swdlRD+/A0/e+uVkMX3qKR3IPpqoPQahn9U6NDzvV7rvCFj3qUCOxu1QoWSJrhdqQcn/x/xsQ5n//M9thnTA==}
 
   '@esbuild/aix-ppc64@0.21.5':
     resolution: {integrity: sha512-1SDgH6ZSPTlggy1yI6+Dbkiz8xzpHJEVAlF/AM1tHPLsf5STom9rwtjE4hKAF20FfXXNTFqEYXyJNWh1GiZedQ==}
@@ -714,6 +735,10 @@ packages:
   '@vitest/utils@2.1.9':
     resolution: {integrity: sha512-v0psaMSkNJ3A2NMrUEHFRzJtDPFn+/VWZ5WxImB21T9fjucJRmS7xCS3ppEnARb9y11OAzaD+P2Ps+b+BGX5iQ==}
 
+  '@zip.js/zip.js@2.10.0':
+    resolution: {integrity: sha512-xRGsVpZiZlp/C/NkTAZHYE+gEhDZXJzvquuAmanDaGl3H81gQ1Di6xItqygySp8RlrzBf1GGW98LDLz0LaC6qA==}
+    engines: {bun: '>=0.7.0', deno: '>=1.0.0', node: '>=18.0.0'}
+
   acorn@8.18.0:
     resolution: {integrity: sha512-lGq+9yr1/GuAWaVYIHRjvvySG5/4VfKIvC8EWxStPdcDh/Ka7FG3twP6v4d5BkravUilhIAsG4Qj83t02LWUPQ==}
     engines: {node: '>=0.4.0'}
@@ -1085,6 +1110,35 @@ snapshots:
     dependencies:
       commander: 15.0.0
 
+  '@emdzej/csfs-core@0.1.0': {}
+
+  '@emdzej/csfs-fsa@0.1.0':
+    dependencies:
+      '@emdzej/csfs-core': 0.1.0
+
+  '@emdzej/csfs-http@0.1.0':
+    dependencies:
+      '@emdzej/csfs-core': 0.1.0
+      '@emdzej/csfs-manifest': 0.1.0
+
+  '@emdzej/csfs-manifest@0.1.0':
+    dependencies:
+      '@emdzej/csfs-core': 0.1.0
+
+  '@emdzej/csfs-node@0.1.0':
+    dependencies:
+      '@emdzej/csfs-core': 0.1.0
+
+  '@emdzej/csfs-opfs@0.1.0':
+    dependencies:
+      '@emdzej/csfs-core': 0.1.0
+      '@emdzej/csfs-fsa': 0.1.0
+
+  '@emdzej/csfs-zip@0.1.0':
+    dependencies:
+      '@emdzej/csfs-core': 0.1.0
+      '@zip.js/zip.js': 2.10.0
+
   '@esbuild/aix-ppc64@0.21.5':
     optional: true
 
@@ -1430,6 +1484,8 @@ snapshots:
       '@vitest/pretty-format': 2.1.9
       loupe: 3.2.1
       tinyrainbow: 1.2.0
+
+  '@zip.js/zip.js@2.10.0': {}
 
   acorn@8.18.0: {}
 
