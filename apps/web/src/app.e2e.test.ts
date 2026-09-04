@@ -55,10 +55,19 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await browser?.close();
   });
 
+  /**
+   * Open the tree the way a first-time visitor does.
+   *
+   * `browser.newPage()` gets its own context, so `localStorage` is empty and
+   * the settings panel opens by itself — which is the flow worth exercising.
+   * A returning visitor is covered separately, by reloading.
+   */
   async function openCatalogue(): Promise<Page> {
     const page = await browser!.newPage();
     await page.goto(URL!, { waitUntil: "domcontentloaded" });
-    await page.getByRole("button", { name: "Open URL" }).click();
+    await page.getByTestId("settings").waitFor({ timeout: 30_000 });
+    await page.getByTestId("settings-url").fill("/data");
+    await page.getByRole("button", { name: "Open", exact: true }).click();
     // Loading the indexes is a real amount of I/O; the brand combobox is the
     // signal that the session opened.
     await page.getByTestId("brands").waitFor({ timeout: 60_000 });
@@ -363,14 +372,39 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await page.close();
   });
 
+  it("remembers the tree and reopens it without asking", async () => {
+    const page = await openCatalogue();
+    const stored = await page.evaluate(() => localStorage.getItem("dialogysx.settings.v1"));
+    expect(stored).toMatch(/"kind":"http"/);
+
+    // A returning visitor: the panel must not appear, and the catalogue must
+    // come back on its own.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("brands").waitFor({ timeout: 90_000 });
+    expect(await page.getByTestId("settings").count()).toBe(0);
+
+    // The gear reopens it, and it names what is remembered.
+    await page.getByTestId("settings-open").click();
+    await page.getByTestId("settings").waitFor({ timeout: 10_000 });
+    expect((await page.getByTestId("settings-current-http").textContent()) ?? "").toMatch(/\/data/);
+    await page.close();
+  });
+
   it("reports a tree that is not there instead of failing silently", async () => {
     const page = await browser!.newPage();
     await page.goto(URL!, { waitUntil: "domcontentloaded" });
-    await page.getByLabel("Static tree URL").fill("/nope");
-    await page.getByRole("button", { name: "Open URL" }).click();
-    const error = page.locator(".error");
+    await page.getByTestId("settings").waitFor({ timeout: 30_000 });
+    await page.getByTestId("settings-url").fill("/nope");
+    await page.getByRole("button", { name: "Open", exact: true }).click();
+    // Reported inside the panel, which stays open: the point is that you can
+    // correct the URL without the interface having thrown you out.
+    const error = page.getByTestId("settings-error");
     await error.waitFor({ timeout: 30_000 });
     expect((await error.textContent()) ?? "").toMatch(/No parts catalogue|nope/);
+    // And a URL that did not open is not remembered, or every future visit
+    // would reopen to the typo.
+    const stored = await page.evaluate(() => localStorage.getItem("dialogysx.settings.v1"));
+    expect(stored).toBeNull();
     await page.close();
   });
 });

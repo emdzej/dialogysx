@@ -13,6 +13,44 @@ import { defineConfig, type Plugin } from "vite";
  * host that ignores `Range` fails loudly instead of returning the wrong bytes.
  * That means dev needs a handler that really honours it.
  */
+/**
+ * Content type by extension.
+ *
+ * Only `.png` used to be typed, and a PDF then arrived with no type at all —
+ * which a browser downloads rather than renders, so the document viewer showed
+ * an empty frame with no error anywhere. The catalogue's own data files are
+ * deliberately `application/octet-stream`: `HttpRangeReader` rejects a
+ * `text/html` response as "not a data tree", and Node's default sniffing would
+ * happily label an extensionless index file as HTML.
+ */
+function contentType(path: string): string {
+  const dot = path.lastIndexOf(".");
+  const ext = dot < 0 ? "" : path.slice(dot + 1).toLowerCase();
+  switch (ext) {
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "gif":
+      return "image/gif";
+    case "tif":
+    case "tiff":
+      return "image/tiff";
+    case "pdf":
+      return "application/pdf";
+    case "xml":
+      return "application/xml";
+    case "json":
+      return "application/json";
+    case "txt":
+    case "utf":
+      return "text/plain; charset=utf-8";
+    default:
+      return "application/octet-stream";
+  }
+}
+
 function dataTree(): Plugin {
   // Default to `<repo>/data`, which is where `dialogysx import` is documented
   // to put things, so `pnpm dev` works with no environment variable.
@@ -55,7 +93,7 @@ function dataTree(): Plugin {
         }
 
         res.setHeader("Accept-Ranges", "bytes");
-        if (path.endsWith(".png")) res.setHeader("Content-Type", "image/png");
+        res.setHeader("Content-Type", contentType(path));
 
         // HEAD must not carry a body. `HttpRangeReader.size()` asks for one
         // per file, and piping the payload into a HEAD response stalls the

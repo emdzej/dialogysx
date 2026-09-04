@@ -15,6 +15,15 @@
  */
 interface FileSystemDirectoryHandle {
   entries(): AsyncIterableIterator<[string, FileSystemDirectoryHandle | FileSystemFileHandle]>;
+  /**
+   * Permission state for a handle restored from IndexedDB.
+   *
+   * Optional because these are not in TypeScript's DOM lib either, and because
+   * a handle from an older browser may not have them — the callers treat a
+   * missing method as "not readable" rather than assuming access.
+   */
+  queryPermission?(opts?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
+  requestPermission?(opts?: { mode?: "read" | "readwrite" }): Promise<PermissionState>;
 }
 
 declare var showDirectoryPicker:

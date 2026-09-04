@@ -17,6 +17,22 @@ export class LocalDirectorySource implements FileSource {
   /** @param root a handle for the `dialogys/data` directory */
   constructor(private readonly root: FileSystemDirectoryHandle) {}
 
+  /**
+   * The handle itself, so it can be stored for next time.
+   *
+   * Exposed because a handle is the only durable reference to a picked
+   * directory: there is no path to write down, and IndexedDB can hold the
+   * handle where `localStorage` cannot.
+   */
+  get handle(): FileSystemDirectoryHandle {
+    return this.root;
+  }
+
+  /** The directory's own name, for labelling it in the interface. */
+  get name(): string {
+    return this.root.name;
+  }
+
   /** Prompt for a directory. Throws if the user cancels or the API is absent. */
   static async pick(): Promise<LocalDirectorySource> {
     // Captured into a local so the check narrows the type. A predicate call

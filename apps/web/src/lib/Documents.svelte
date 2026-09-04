@@ -8,8 +8,10 @@
    * `ArboRech-*-pdf-<FAMILY>.xml`; a document can hang off many of them, which
    * is why the same manual reappears under several names.
    */
+  import Download from "@lucide/svelte/icons/download";
+  import ExternalLink from "@lucide/svelte/icons/external-link";
+  import X from "@lucide/svelte/icons/x";
   import type { DocElement, DocRef } from "@dialogysx/catalogue";
-  import Icon from "./Icon.svelte";
 
   interface Props {
     elements: DocElement[];
@@ -150,21 +152,21 @@
             target="_blank"
             rel="noopener"
             title="Open in a new tab"
-            aria-label="Open in a new tab"><Icon name="external-link" /></a
+            aria-label="Open in a new tab"><ExternalLink size={15} strokeWidth={1.9} /></a
           >
           <a
             class="act"
             href={open.url}
             download={`${open.doc.numero}.pdf`}
             title="Download"
-            aria-label="Download"><Icon name="download" /></a
+            aria-label="Download"><Download size={15} strokeWidth={1.9} /></a
           >
           <button
             type="button"
             class="act close"
             onclick={onClose}
             title="Close"
-            aria-label="Close"><Icon name="x" /></button
+            aria-label="Close"><X size={15} strokeWidth={1.9} /></button
           >
         </div>
         <iframe

@@ -22,24 +22,142 @@
   import Combo from "./lib/Combo.svelte";
   import About from "./lib/About.svelte";
   import Documents from "./lib/Documents.svelte";
-  import Icon from "./lib/Icon.svelte";
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
+  import SettingsIcon from "@lucide/svelte/icons/settings";
+  import Settings from "./lib/Settings.svelte";
   import { HttpTreeSource } from "./lib/http-source";
   import { isSupported, LocalDirectorySource, revokeImageUrl } from "./lib/local-source";
+  import {
+    clearDirectoryHandle,
+    clearSettings,
+    handleReadable,
+    loadDirectoryHandle,
+    loadSettings,
+    requestHandleAccess,
+    saveDirectoryHandle,
+    saveSettings,
+    type SavedSource,
+  } from "./lib/settings";
   import { app } from "./lib/state.svelte";
 
-  let baseUrl = $state("/data");
   let aboutOpen = $state(false);
+  let settingsOpen = $state(false);
+  let saved = $state<SavedSource | undefined>(undefined);
+  /** A remembered folder the browser will not let us read without a click. */
+  let needsPermission = $state(false);
+  let settingsError = $state<string | undefined>(undefined);
 
-  const openHttp = () => app.open(new HttpTreeSource({ baseUrl }), baseUrl);
-  const openLocal = async () => {
-    try {
-      await app.open(await LocalDirectorySource.pick(), "local folder");
-    } catch (e) {
-      app.status = { kind: "error", message: e instanceof Error ? e.message : String(e) };
+  /** Nothing remembered, so the settings panel is the only way in. */
+  const firstRun = $derived(saved === undefined && app.status.kind !== "ready");
+
+  const busy = $derived(app.status.kind === "loading" ? app.status.what : undefined);
+
+  /**
+   * Restore the last source.
+   *
+   * A URL reopens itself. A folder cannot: browsers drop a handle's permission
+   * across a reload and `requestPermission` only works inside a user gesture,
+   * so the most this can do is check and, if access survived, open — otherwise
+   * it shows the panel with a button that asks.
+   */
+  async function restore(): Promise<void> {
+    const settings = loadSettings();
+    saved = settings.source;
+    if (!settings.source) {
+      settingsOpen = true;
+      return;
     }
-  };
+    if (settings.source.kind === "http") {
+      await app.open(new HttpTreeSource({ baseUrl: settings.source.url }), settings.source.url, settings.language);
+      return;
+    }
+    const handle = await loadDirectoryHandle();
+    if (!handle) {
+      // The choice was remembered but the handle was not — clearing site data
+      // wipes IndexedDB and leaves `localStorage` alone often enough to matter.
+      saved = undefined;
+      clearSettings();
+      settingsOpen = true;
+      return;
+    }
+    if (await handleReadable(handle)) {
+      await app.open(new LocalDirectorySource(handle), handle.name, settings.language);
+    } else {
+      needsPermission = true;
+      settingsOpen = true;
+    }
+  }
+
+  $effect(() => {
+    void restore();
+  });
+
+  async function openUrl(url: string): Promise<void> {
+    settingsError = undefined;
+    await app.open(new HttpTreeSource({ baseUrl: url }), url);
+    if (app.status.kind === "error") {
+      settingsError = app.status.message;
+      return;
+    }
+    // Remembered only once it opened. Saving on click would make a typo the
+    // thing the app reopens to on every future visit.
+    saved = { kind: "http", url };
+    saveSettings({ source: saved, language: app.language });
+    await clearDirectoryHandle();
+    settingsOpen = false;
+  }
+
+  async function pickFolder(): Promise<void> {
+    settingsError = undefined;
+    try {
+      const source = await LocalDirectorySource.pick();
+      await app.open(source, source.name);
+      if (app.status.kind === "error") {
+        settingsError = app.status.message;
+        return;
+      }
+      saved = { kind: "folder", name: source.name };
+      needsPermission = false;
+      saveSettings({ source: saved, language: app.language });
+      await saveDirectoryHandle(source.handle);
+      settingsOpen = false;
+    } catch (e) {
+      // Cancelling the picker throws `AbortError`; that is not a failure.
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      settingsError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  /** Re-grant access to the remembered folder. Runs inside the click. */
+  async function reopenFolder(): Promise<void> {
+    settingsError = undefined;
+    const handle = await loadDirectoryHandle();
+    if (!handle) {
+      settingsError = "That folder is no longer remembered. Choose it again.";
+      saved = undefined;
+      return;
+    }
+    if (!(await handleReadable(handle)) && !(await requestHandleAccess(handle))) {
+      settingsError = "Access to that folder was denied.";
+      return;
+    }
+    needsPermission = false;
+    await app.open(new LocalDirectorySource(handle), handle.name, loadSettings().language);
+    if (app.status.kind === "error") {
+      settingsError = app.status.message;
+      return;
+    }
+    settingsOpen = false;
+  }
+
+  async function forgetFolder(): Promise<void> {
+    await clearDirectoryHandle();
+    clearSettings();
+    saved = undefined;
+    needsPermission = false;
+    settingsError = undefined;
+  }
 
   let imageSrc = $state<string | undefined>(undefined);
   $effect(() => {
@@ -94,6 +212,22 @@
   <About onClose={() => (aboutOpen = false)} />
 {/if}
 
+{#if settingsOpen}
+  <Settings
+    {saved}
+    {needsPermission}
+    {firstRun}
+    folderSupported={isSupported()}
+    {busy}
+    error={settingsError}
+    onOpenUrl={(u) => openUrl(u)}
+    onPickFolder={() => pickFolder()}
+    onReopenFolder={() => reopenFolder()}
+    onForgetFolder={() => forgetFolder()}
+    onClose={() => (settingsOpen = false)}
+  />
+{/if}
+
 <main>
   <header>
     <!--
@@ -124,27 +258,48 @@
         rel="noopener noreferrer"
         title="Source on GitHub"
         aria-label="Source on GitHub"
-        data-testid="repo"><Icon name="github" size={14} /></a
+        data-testid="repo"
       >
+        <!-- GitHub's own mark, inlined so it takes `currentColor` and needs no
+             fetch — the one icon that does not come from Lucide, because
+             Lucide's approximation of it is not the brand mark. -->
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
+          <path
+            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
+          />
+        </svg>
+      </a>
     </div>
     <div class="open">
-      <input bind:value={baseUrl} spellcheck="false" aria-label="Static tree URL" />
-      <button onclick={openHttp}>Open URL</button>
-      <button onclick={openLocal} disabled={!isSupported()}>Open folder</button>
+      <!-- The source controls live in the settings dialog now. They were a
+           permanent fixture in the bar for a choice made once, and the tree in
+           use is already named in the chrome below. -->
+      <button
+        class="gear"
+        onclick={() => (settingsOpen = true)}
+        title="Settings"
+        aria-haspopup="dialog"
+        aria-label="Settings"
+        data-testid="settings-open"><SettingsIcon size={16} strokeWidth={1.9} /></button
+      >
     </div>
   </header>
 
   {#if app.status.kind !== "ready"}
     <section class="splash">
-      {#if app.status.kind === "idle"}
-        <p>
-          Point this at a data tree — a URL served with <code>Range</code> support, or a folder on
-          this machine. Build one with <code>dialogysx import</code>.
-        </p>
-      {:else if app.status.kind === "loading"}
+      {#if app.status.kind === "loading"}
         <p class="working">{app.status.what}&hellip;</p>
       {:else if app.status.kind === "error"}
+        <!-- Also shown in the dialog while it is open; here for when it is
+             not, so a failed restore is not a blank page. -->
         <p class="error">{app.status.message}</p>
+        <button class="retry" onclick={() => (settingsOpen = true)}>Choose a data tree</button>
+      {:else if !settingsOpen}
+        <p>
+          No data tree open. <button class="retry" onclick={() => (settingsOpen = true)}
+            >Choose one</button
+          >
+        </p>
       {/if}
     </section>
   {:else}
@@ -533,6 +688,40 @@
   .version:hover {
     color: #fff;
   }
+  .gear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    padding: 0;
+    border: 1px solid rgb(255 255 255 / 28%);
+    border-radius: 2px;
+    background: none;
+    color: rgb(255 255 255 / 82%);
+    cursor: pointer;
+  }
+  .gear:hover {
+    background: rgb(255 255 255 / 12%);
+    color: #fff;
+  }
+  .gear:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 1px;
+  }
+  .retry {
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    background: var(--card);
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--blue);
+    cursor: pointer;
+  }
+  .retry:hover {
+    background: var(--paper);
+  }
   .repo {
     display: flex;
     align-items: center;
@@ -545,16 +734,6 @@
   .open {
     display: flex;
     gap: 0.35rem;
-  }
-  .open input {
-    font-family: var(--mono);
-    font-size: 0.78rem;
-    padding: 0.22rem 0.45rem;
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.12);
-    color: #fff;
-    width: 10rem;
   }
   button {
     font: inherit;
@@ -788,9 +967,5 @@
     .split {
       grid-template-columns: 1fr;
     }
-  }
-  code {
-    font-family: var(--mono);
-    font-size: 0.9em;
   }
 </style>
