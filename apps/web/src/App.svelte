@@ -20,6 +20,7 @@
    */
   import { plateLabel, type VehicleSpec } from "@dialogysx/catalogue";
   import Combo from "./lib/Combo.svelte";
+  import About from "./lib/About.svelte";
   import Documents from "./lib/Documents.svelte";
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
@@ -28,6 +29,7 @@
   import { app } from "./lib/state.svelte";
 
   let baseUrl = $state("/data");
+  let aboutOpen = $state(false);
 
   const openHttp = () => app.open(new HttpTreeSource({ baseUrl }), baseUrl);
   const openLocal = async () => {
@@ -87,10 +89,33 @@
   }
 </script>
 
+{#if aboutOpen}
+  <About onClose={() => (aboutOpen = false)} />
+{/if}
+
 <main>
   <header>
+    <!--
+      Wordmark, version, repository — the arrangement ddtx uses. The version is
+      a build-time literal from `package.json`, so it cannot disagree with the
+      repository, and it links to that release's tag without a `v` prefix.
+    -->
     <div class="title">
-      <h1>dialogysx</h1>
+      <button
+        class="wordmark"
+        onclick={() => (aboutOpen = true)}
+        title="About dialogysx"
+        aria-haspopup="dialog"
+        data-testid="wordmark">dialogys<span class="accent">x</span></button
+      >
+      <a
+        class="version"
+        href={`${__REPO_URL__}/releases/tag/${__APP_VERSION__}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Release notes"
+        data-testid="version">{__APP_VERSION__}</a
+      >
       <span class="tagline">Renault / Dacia parts catalogue</span>
     </div>
     <div class="open">
@@ -181,8 +206,7 @@
         />
       </label>
 
-      <div class="asm">
-        <Combo
+      <Combo
           testid="assemblies"
           label="Assembly"
           items={app.visibleAssemblies}
@@ -197,16 +221,23 @@
           disabled={!app.group}
           onPick={(a) => app.selectAssembly(a.code)}
         />
-        {#if app.hiddenAssemblyCount > 0}
-          <!-- Say what is hidden. Two thirds of the menu can be empty for a
-               given vehicle, and silently shortening it looks like missing
-               data. -->
-          <label class="inline">
-            <input type="checkbox" bind:checked={app.onlyAvailable} />
-            hide {app.hiddenAssemblyCount} with no parts
-          </label>
-        {/if}
-      </div>
+
+      {#if app.hiddenAssemblyCount > 0}
+        <!--
+          Say what is hidden. Two thirds of the menu can be empty for a given
+          vehicle, and silently shortening it looks like missing data.
+
+          A sibling of the comboboxes, not a child of the Assembly one. Stacked
+          underneath it the checkbox became part of that column's height, and
+          `align-items: flex-end` then aligned the *checkbox* with the other
+          inputs' baseline — lifting the Assembly field a row above its
+          neighbours. The controls line up; the note sits beside them.
+        -->
+        <label class="inline">
+          <input type="checkbox" bind:checked={app.onlyAvailable} />
+          hide {app.hiddenAssemblyCount} with no parts
+        </label>
+      {/if}
 
       <!-- Shown only when there is a choice. Two thirds of assemblies resolve
            to a single plate, which is opened automatically. -->
@@ -454,10 +485,44 @@
     align-items: baseline;
     gap: 0.6rem;
   }
-  h1 {
-    margin: 0;
+  /*
+   * The wordmark is a button, so it needs the heading's look rather than a
+   * button's. `font: inherit` first, then only what differs.
+   */
+  .wordmark {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
     font-size: 0.98rem;
+    font-weight: 700;
     letter-spacing: -0.01em;
+    color: #fff;
+    cursor: pointer;
+  }
+  .wordmark:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  /*
+   * Marianne red, lightened for this ground.
+   *
+   * `--red` is 2.99:1 against Blue France — fine as a block, muddy as a single
+   * glyph. This tint keeps the same red and clears 6:1.
+   */
+  .wordmark .accent {
+    color: #ff8080;
+  }
+  .version {
+    flex-shrink: 0;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-variant-numeric: tabular-nums;
+    color: rgb(255 255 255 / 62%);
+    text-decoration: none;
+  }
+  .version:hover {
+    color: #fff;
   }
   .tagline {
     opacity: 0.75;
@@ -518,7 +583,9 @@
     flex-direction: row;
     align-items: center;
     gap: 0.3rem;
-    margin-top: 0.2rem;
+    /* Sits on the inputs' baseline, so it needs the same bottom padding they
+       have rather than a top nudge. */
+    padding-bottom: 0.25rem;
     font-size: 0.7rem;
     color: var(--ink-faint);
     text-transform: none;
@@ -527,11 +594,6 @@
   }
   .bar label.inline input {
     margin: 0;
-  }
-  .asm {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
   }
   .bar label > span {
     font-size: 9.5px;

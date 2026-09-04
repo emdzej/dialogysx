@@ -1,4 +1,5 @@
-import { createReadStream, existsSync, statSync } from "node:fs";
+import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { join, normalize, resolve } from "node:path";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
 import { defineConfig, type Plugin } from "vite";
@@ -89,8 +90,25 @@ function dataTree(): Plugin {
   };
 }
 
+/**
+ * The manifest, read at build time.
+ *
+ * Injected with `define` so the bundle carries string literals rather than
+ * importing `package.json` at runtime: the manifest stays out of the browser,
+ * and the version shown cannot drift from the one in the repository.
+ */
+const manifest = JSON.parse(
+  readFileSync(fileURLToPath(new URL("../../package.json", import.meta.url)), "utf8"),
+) as { version: string; repository?: { url?: string } };
+
 export default defineConfig({
   plugins: [svelte(), dataTree()],
+  define: {
+    __APP_VERSION__: JSON.stringify(manifest.version),
+    __REPO_URL__: JSON.stringify(
+      manifest.repository?.url ?? "https://github.com/emdzej/dialogysx",
+    ),
+  },
   server: {
     watch: {
       /**

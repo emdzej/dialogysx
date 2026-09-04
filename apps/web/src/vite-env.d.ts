@@ -19,3 +19,11 @@ interface FileSystemDirectoryHandle {
 
 declare var showDirectoryPicker:
   undefined | ((opts?: { mode?: "read" | "readwrite" }) => Promise<FileSystemDirectoryHandle>);
+
+/**
+ * Build-time literals from the root `package.json`, injected by `define` in
+ * `vite.config.ts`. Declared here rather than imported so nothing reads the
+ * manifest at runtime.
+ */
+declare const __APP_VERSION__: string;
+declare const __REPO_URL__: string;

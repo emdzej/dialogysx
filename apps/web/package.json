@@ -14,7 +14,8 @@
   "dependencies": {
     "@dialogysx/catalogue": "workspace:*",
     "@dialogysx/core": "workspace:*",
-    "@dialogysx/raf": "workspace:*"
+    "@dialogysx/raf": "workspace:*",
+    "@lucide/svelte": "^1.40.0"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^5.0.0",

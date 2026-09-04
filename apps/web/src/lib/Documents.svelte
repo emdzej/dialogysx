@@ -9,6 +9,7 @@
    * is why the same manual reappears under several names.
    */
   import type { DocElement, DocRef } from "@dialogysx/catalogue";
+  import Icon from "./Icon.svelte";
 
   interface Props {
     elements: DocElement[];
@@ -123,17 +124,6 @@
               <span class="title">{doc.title}</span>
               <code>{doc.numero}</code>
             </button>
-            {#if doc.applicability.length > 0}
-              <!-- Shown because the filter deliberately does not apply it: the
-                   `$`-prefixed variables are asked when a document is opened,
-                   not derived from the vehicle, so a restriction here may still
-                   be one the reader has to check. -->
-              <span class="appl">
-                {doc.applicability
-                  .map((a) => a.clauses.map((c) => `${c.variable} ${c.values.join(" | ")}`).join(" and "))
-                  .join("  or  ")}
-              </span>
-            {/if}
           </li>
         {/each}
       </ul>
@@ -147,12 +137,35 @@
           <code>{open.doc.numero}</code>
           <span class="dim">{kindLabel(open.doc.kind)}</span>
           <span class="spacer"></span>
-          <!-- The browser's own PDF plugin does the rendering. Offering both
-               links because a workshop wants the real viewer: an iframe cannot
-               print reliably and cannot be annotated. -->
-          <a href={open.url} target="_blank" rel="noopener">open in a tab</a>
-          <a href={open.url} download={`${open.doc.numero}.pdf`}>download</a>
-          <button type="button" class="close" onclick={onClose}>close</button>
+          <!-- The browser's own PDF plugin does the rendering. Both actions are
+               offered because a workshop wants the real viewer: an iframe
+               cannot print reliably and cannot be annotated.
+
+               Icons with `title` and an accessible name, not text: three words
+               of chrome on every document crowded out the title, which is the
+               only part of this bar anyone reads. -->
+          <a
+            class="act"
+            href={open.url}
+            target="_blank"
+            rel="noopener"
+            title="Open in a new tab"
+            aria-label="Open in a new tab"><Icon name="external-link" /></a
+          >
+          <a
+            class="act"
+            href={open.url}
+            download={`${open.doc.numero}.pdf`}
+            title="Download"
+            aria-label="Download"><Icon name="download" /></a
+          >
+          <button
+            type="button"
+            class="act close"
+            onclick={onClose}
+            title="Close"
+            aria-label="Close"><Icon name="x" /></button
+          >
         </div>
         <iframe
           title={`${open.doc.numero} — ${open.doc.title}`}
@@ -288,12 +301,6 @@
   .kind.nt {
     color: var(--red);
   }
-  .appl {
-    display: block;
-    padding: 0 0.5rem 0.3rem 2.1rem;
-    font-size: 0.7rem;
-    color: var(--ink-faint);
-  }
   .viewer {
     border: 1px solid var(--rule);
     border-radius: 2px;
@@ -312,15 +319,31 @@
   .spacer {
     flex: 1;
   }
-  .vhead a {
-    color: var(--blue);
-    font-size: 0.78rem;
-  }
-  .close {
-    width: auto;
-    padding: 0 0.35rem;
+  /* Icon actions: square hit area, no button chrome until hovered. */
+  .act {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    flex: none;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: none;
     color: var(--ink-soft);
-    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .act:hover {
+    background: var(--paper);
+    color: var(--ink);
+  }
+  .act:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 1px;
+  }
+  .close:hover {
+    color: var(--red);
   }
   iframe {
     display: block;
