@@ -20,6 +20,7 @@ import {
 } from "@dialogysx/catalogue";
 import type { PrGroup } from "@dialogysx/core";
 import { Generations } from "./generation.js";
+import type { SavedSelection } from "./settings.js";
 
 export type Status =
   | { kind: "idle" }
@@ -262,6 +263,7 @@ export class AppState {
     this.availability = new Map();
     this.answers = {};
     this.models = await s.modelList(b.id);
+    this.notify();
   }
 
   /** Pick a model: load every vehicle across all its PR groups. */
@@ -291,6 +293,7 @@ export class AppState {
       }
     }
     this.vehicles = all;
+    this.notify();
   }
 
   async selectGroup(pr: PrGroup): Promise<void> {
@@ -339,6 +342,7 @@ export class AppState {
     this.availability =
       (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
     if (this.assembly) await this.applyAssembly(this.assembly, gen);
+    this.notify();
   }
 
   /** Assemblies grouped by domain, for a navigable list. */
@@ -383,6 +387,7 @@ export class AppState {
 
   async selectAssembly(organe: string): Promise<void> {
     await this.applyAssembly(organe, this.claim());
+    this.notify();
   }
 
   /**
@@ -446,6 +451,7 @@ export class AppState {
   async answer(code: string, value: string): Promise<void> {
     this.answers = { ...this.answers, [code]: value };
     await this.reevaluate(this.claim());
+    this.notify();
   }
 
   /** Reopen the same source in another language. */
@@ -477,6 +483,7 @@ export class AppState {
   /** Re-evaluate after the factory or build number changes. */
   async refine(): Promise<void> {
     await this.reevaluate(this.claim());
+    this.notify();
   }
 
   /**
@@ -508,6 +515,7 @@ export class AppState {
   async setView(view: "parts" | "docs"): Promise<void> {
     this.view = view;
     if (view === "docs" && !this.docs && !this.docsLoading) await this.loadDocs();
+    this.notify();
   }
 
   async loadDocs(): Promise<void> {
@@ -582,6 +590,105 @@ export class AppState {
 
   closeDoc(): void {
     this.openDoc = undefined;
+  }
+
+  /**
+   * Called whenever the selection changes, so the app can persist it.
+   *
+   * A callback rather than the store writing `localStorage` itself: the store
+   * has no business knowing about storage keys, and the app already owns the
+   * settings object this has to be merged into.
+   */
+  onSelectionChange?: () => void;
+
+  /** Suppressed while restoring, so a restore does not re-save what it read. */
+  private restoring = false;
+
+  private notify(): void {
+    if (!this.restoring) this.onSelectionChange?.();
+  }
+
+  /** What is worth remembering, or `undefined` when nothing is chosen. */
+  get selection(): SavedSelection | undefined {
+    if (!this.brand && !this.model && !this.vehicle) return undefined;
+    return {
+      ...(this.brand ? { brand: this.brand.id } : {}),
+      ...(this.model ? { model: this.model.name } : {}),
+      ...(this.vehicle
+        ? {
+            vehicle: {
+              pr: this.vehicle.pr,
+              // The whole criteria row, because that is what identifies an
+              // envelope entry: 41 rows for one PR group differ only across
+              // seven fields, and any subset would match several.
+              criteria: Object.fromEntries(
+                Object.entries(this.vehicle.criteria).filter(
+                  (e): e is [string, string] => e[1] !== undefined,
+                ),
+              ),
+            },
+          }
+        : {}),
+      ...(this.assembly ? { assembly: this.assembly } : {}),
+      ...(this.factory ? { factory: this.factory } : {}),
+      ...(this.buildNumber ? { buildNumber: this.buildNumber } : {}),
+      ...(Object.keys(this.answers).length > 0 ? { answers: { ...this.answers } } : {}),
+      view: this.view,
+    };
+  }
+
+  /**
+   * Put back a remembered selection, as far as it still resolves.
+   *
+   * Each step is checked against the tree that is actually open: a saved model
+   * may not exist in this import, and a saved vehicle may not be in this PR
+   * group. Anything that does not match stops the restore there rather than
+   * failing the whole thing — half a selection is useful, and a vehicle from
+   * another tree would be wrong in a way nobody would notice.
+   */
+  async restoreSelection(saved: SavedSelection | undefined): Promise<void> {
+    if (!saved || !this.session) return;
+    this.restoring = true;
+    try {
+      await this.applyRestore(saved);
+    } finally {
+      this.restoring = false;
+    }
+  }
+
+  private async applyRestore(saved: SavedSelection): Promise<void> {
+    if (saved.brand) {
+      const brand = this.brands.find((b) => b.id === saved.brand);
+      if (brand) await this.selectBrand(brand);
+    }
+    if (!saved.model) return;
+    const model = this.models.find((m) => m.name === saved.model);
+    if (!model) return;
+    await this.selectModel(model);
+
+    if (!saved.vehicle) return;
+    const wanted = saved.vehicle;
+    const vehicle = this.vehicles.find(
+      (v) =>
+        v.pr === wanted.pr &&
+        Object.entries(wanted.criteria).every(([k, val]) => v.criteria[k] === val),
+    );
+    if (!vehicle) return;
+    await this.selectVehicle(vehicle);
+
+    // Factory and build number before the assembly: the assembly's plates are
+    // evaluated against them, so setting them afterwards would resolve twice.
+    if (saved.factory && this.factories.includes(saved.factory)) this.factory = saved.factory;
+    if (saved.buildNumber) this.buildNumber = saved.buildNumber;
+    if (saved.answers) this.answers = { ...saved.answers };
+
+    if (saved.assembly && this.assemblies.some((a) => a.code === saved.assembly)) {
+      await this.selectAssembly(saved.assembly);
+    } else if (saved.factory || saved.buildNumber || saved.answers) {
+      await this.refine();
+    }
+
+    if (saved.view) await this.setView(saved.view);
   }
 
   clearAnswer(code: string): void {

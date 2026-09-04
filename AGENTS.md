@@ -77,8 +77,8 @@ signed-comparison test. Two traps found while doing it:
 
 ## Importing discs
 
-`dialogysx import` merges the six discs. It is not `cp -r`, and the reasons are
-all cases where a copy loses data **without an error**:
+`dialogysx import` merges a disc set — five or six ISOs. It is not `cp -r`, and
+the reasons are all cases where a copy loses data **without an error**:
 
 - Two discs write `mrnt/ru/d3k/images/images_1.zip` with different content, so
   image archives are extracted, not copied. Their entries do not overlap
@@ -88,7 +88,11 @@ all cases where a copy loses data **without an error**:
 - `update/VersionData` differs per disc, so it goes in the manifest rather than
   the tree.
 
-**Every file on all six discs must map to a named component.** `--dry-run`
+- `images_1.zip` on the English DVD-5 contains `bkp.tar.gz` (52 MB) and a
+  `bkp/` tree beside its illustrations — somebody left a backup inside a
+  shipped archive — so image archives keep only illustrations.
+
+**Every file on every disc must map to a named component.** `--dry-run`
 prints anything unclaimed, and that list is how `TM.zip` (99,056 labour-time
 XMLs), `tarif.zip` and `REACH.zip` were found. If you add a disc and something
 is unclaimed, name it — including things that are out of scope, so the omission
@@ -132,9 +136,14 @@ is known independently, so do not describe filtering as verified.
 `apps/web` is Svelte 5 runes. The interesting logic is all in
 `@dialogysx/catalogue`; the components are presentational on purpose.
 
-- **Navigation follows the data**: PR group -> vehicle -> assembly -> plate. Not
-  a design preference — the drawing number lives only on the assembly record, so
-  a plate cannot be rendered without walking through one.
+- **Navigation follows the data**: brand -> model -> vehicle -> assembly ->
+  plate. Not a design preference — the drawing number lives only on the assembly
+  record, so a plate cannot be rendered without walking through one. The PR
+  group is a _consequence_ of the vehicle, not a separate choice.
+- **The assembly belongs to the parts view, not to identification.** The repair
+  documents are indexed by vehicle _family_ and `documentsFor` never sees an
+  assembly, so it has no bearing on them. It is a panel with a search box
+  rather than a dropdown, because the menu is 346 entries in three levels.
 - **A vehicle must be picked before plates appear.** Applicability is evaluated
   against it, so the plate list is genuinely vehicle-dependent.
 - **Hover and pin are separate fields.** With one, `onmouseenter` set it and the
@@ -149,9 +158,21 @@ is known independently, so do not describe filtering as verified.
   that rendered only names and operators produced
   `"Type moteur = or NFMO = and ..."` — readable-looking nonsense.
 
-### Two bugs that only appear in a browser
+- **Long applicability text is on demand.** One engine-block candidate has
+  twenty OR'd alternatives, each naming a dozen values; rendered in its cell it
+  made one row taller than the drawing beside it. The column is an icon that
+  opens the text, red when the row is undecided.
+- **Async results need a generation guard.** Every action awaits data read over
+  `Range`, so two overlapping ones finish in network order and the _older_ one
+  wrote last: typing a build number and immediately answering a criterion put
+  back a plate resolved before the answer, and the count sat at "6 undecided"
+  with the answer visibly accepted. `Generations` in `apps/web/src/lib` exists
+  for this; nested calls inherit the caller's generation rather than claiming
+  their own.
 
-Both passed every server-side test:
+### Three bugs that only appear in a browser
+
+All three passed every server-side test:
 
 - **`fetch` must be bound.** `private readonly fetchImpl: typeof fetch = fetch`
   makes `this.fetchImpl(...)` a _method_ call, so the browser's `fetch` gets the
@@ -161,6 +182,24 @@ Both passed every server-side test:
 - **The dev server must answer `HEAD` without a body.** `HttpRangeReader.size()`
   sends one per file; piping the payload into a HEAD response stalls the
   request, which looked like the browser suite hanging on startup.
+- **An SPA answers any unknown path with its own HTML and a 200**, so a
+  mistyped base URL looks like a file that exists, and parsing that as an index
+  gives "Offset is outside the bounds of the DataView". `NotDataError` is a
+  distinct type from a 404 on purpose: a 404 means _this file_ is absent, which
+  is normal, while HTML means the whole tree is somewhere else.
+
+A fourth, in the same family: **the dev server must set `Content-Type`.** It
+typed only `.png`, so a PDF arrived typeless — which a browser downloads rather
+than renders, leaving the document viewer an empty frame with no error
+anywhere.
+
+### Boot effects must not track what they write
+
+`restore()` reads `app.models`, `app.vehicles` and `app.assemblies` — all
+`$state` — while putting a remembered selection back, so an unguarded `$effect`
+tracks them and writing them re-runs it: open, restore, write, re-run, forever.
+The guard is a plain `let booted`, not `$state`, so testing it is not a tracked
+read either.
 
 ## Things that are the way they are on purpose
 
@@ -211,19 +250,31 @@ maintained JS library covers it. That is the exception, and it is commented.
 
 Honest list, so nobody reports these as discoveries:
 
-- **Plate condition grammar is unspecified.** Understood by example only. This
-  is the critical path: it decides which parts fit which vehicle, and it has no
-  known-answer tests yet. Until it does, there is no parts-by-vehicle view.
-- **`prremp` payloads, `refContexte`, and `Dates` semantics are undecoded.**
-- **`chemins.properties` has not been extracted** from the 250 MB MSI, so the
-  path layout is inferred from `AccesPR` and the observed tree.
-- **The web app is a harness, not a product.** No plates, no drawings, no repair
-  documentation yet.
-- **No lint.** No eslint or prettier check runs in CI, because there is no CI.
-  `pnpm format` exists and is manual.
-- **The browser tests do not run by default and never run in CI.** They need a
-  dev server _and_ a data tree, so `pnpm test` alone skips all six — a green
-  unit run says nothing about the interface. Running them:
+- **No parts list has been checked against a known-good answer.** The grammar
+  parses all 41,758 plates with every byte consumed and every date view
+  resolves, but that proves shape, not correctness. It needs one vehicle whose
+  right answer is known independently. This is the one claim to keep making
+  carefully.
+- **The browser importer's write cycle is untested against a real disc.**
+  Driving a native directory picker needs interaction Playwright cannot supply,
+  so what is covered is that the wizard opens and its worker boots. The zip
+  reader beneath it _is_ CRC-verified against three real archives, and the
+  planner is the CLI's.
+- **`prremp` payloads and `refContexte` are undecoded.** `Dates` is decoded —
+  see `dates.ts` — and the three date views resolve.
+- **`chemins.properties` has not been extracted** from the MSI, so the path
+  layout comes from the decompiled readers and the observed tree rather than
+  from the vendor's own constants. Every path in `repair.ts` cites the class
+  that builds it.
+- **The D3K/SPI XML procedures have no renderer.** The _indexes_ are read —
+  37,695 procedures across 161 files — but turning one into a page is not built.
+  `repair.xsl` from DVD-0 is the authority on presentation.
+- **No eslint.** `prettier --check` runs in CI; there is no linter beyond
+  `tsc` and `svelte-check`.
+- **The browser tests never run in CI.** They need a dev server _and_ a data
+  tree, and the catalogue is Renault's and is not in this repository, so
+  `pnpm test` alone skips all fourteen — **a green CI run says nothing about
+  whether the interface works.** Running them:
 
   ```sh
   DIALOGYSX_DATA=/path/to/tree pnpm --filter @dialogysx/web dev --port 5199
@@ -235,10 +286,54 @@ Honest list, so nobody reports these as discoveries:
   fail with "Invalid Chai property", which is how the first run of that file
   went.
 
-- **Only macOS can mount ISOs.** `import` shells out to `hdiutil`. Elsewhere it
-  asks for mount points, which it accepts on any platform.
-- **`import` has no unit test for its copy/extract loop.** The component routing
-  and selection logic is tested; the file walk is only covered by running it.
+- **Only macOS can mount ISOs.** `import` shells out to `hdiutil`, falling back
+  to `-imagekey diskimage-class=CRawDiskImage` for an image whose length is not
+  a whole number of 2048-byte sectors — `hdiutil` refuses those outright even
+  when every file in them reads clean. Elsewhere it asks for mount points,
+  which it accepts on any platform.
+- **`import` has no unit test for its copy/extract loop.** The component
+  routing, the path mapping and the archive predicates are tested; the file walk
+  is only covered by running it.
+- **A deployed HTTPS page cannot read an HTTP data tree.** Browsers block mixed
+  content, so `dialogysx.emdzej.pl` cannot reach a plain-HTTP bucket. Nothing in
+  the code can fix that.
+
+## Where the shared code lives
+
+`@dialogysx/importer` holds everything the CLI and the browser importer must
+agree on: disc identification, component routing, the path mapping, the archive
+predicates, and per-disc planning. Both sides provide a `SourceFs`/`TargetFs`
+adapter and nothing else. **Do not reimplement any of it on one side** — a
+second copy of "is this an image archive" diverges on the first disc nobody
+tested with.
+
+Two things that follow:
+
+- `node:fs` appears in exactly one importer file, `apps/cli/src/import/node-fs.ts`.
+- The zip reader is ours rather than a library's, for two measured reasons: these
+  archives put **CRC-32 = 0 in every local file header** while the central
+  directory holds the truth, so a reader must take sizes from the central
+  directory or truncate every entry to nothing; and `fflate.unzip`, which does
+  read the central directory, wants the whole archive in memory when
+  `images_1.zip` is 945 MB.
+
+## Persisted state in the browser
+
+Three stores, and which one to use is not a preference:
+
+- **`localStorage`** — the source choice, the language, and the current
+  selection. Small JSON.
+- **IndexedDB** — the picked `FileSystemDirectoryHandle`. `JSON.stringify`
+  turns a handle into `{}` without throwing, so `localStorage` would silently
+  stop remembering the folder.
+- **The target tree itself** — `.dialogysx-import.json`, so an import resumes
+  across tabs and machines, and a tree the CLI started can be continued in the
+  browser.
+
+A handle's **permission does not survive a reload**: `queryPermission` returns
+`"prompt"` even for one granted yesterday, and `requestPermission` only works
+inside a user gesture. So a remembered folder needs a click; a URL does not.
+Say this in the interface rather than letting it be discovered.
 
 ## Commit messages
 

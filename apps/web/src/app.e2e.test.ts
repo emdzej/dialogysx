@@ -409,6 +409,33 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await page.close();
   });
 
+  it("remembers what you were looking at and puts it back", async () => {
+    const page = await openCatalogue();
+    await identify(page);
+    await pickAssembly(page, ASSEMBLY);
+    await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
+    const before = (await page.getByTestId("plate-key").textContent()) ?? "";
+
+    const stored = JSON.parse(
+      (await page.evaluate(() => localStorage.getItem("dialogysx.settings.v1"))) ?? "{}",
+    ) as { selection?: { model?: string; assembly?: string; vehicle?: { pr?: string } } };
+    expect(stored.selection?.model).toBe(MODEL);
+    expect(stored.selection?.assembly).toBeDefined();
+    expect(stored.selection?.vehicle?.pr).toBe(GROUP);
+
+    // The point: a reload comes back to the same plate without touching a
+    // single picker.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByTestId("plate-key").waitFor({ timeout: 120_000 });
+    const after = (await page.getByTestId("plate-key").textContent()) ?? "";
+    expect(after.replace(/\s+/g, " ")).toBe(before.replace(/\s+/g, " "));
+
+    // And the pickers show it, rather than the plate hanging off nothing.
+    expect(await page.getByTestId("models").inputValue()).toBe(MODEL);
+    expect(await page.getByTestId("vehicles").inputValue()).toMatch(/ED01/);
+    await page.close();
+  });
+
   it("reports a tree that is not there instead of failing silently", async () => {
     const page = await browser!.newPage();
     await page.goto(URL!, { waitUntil: "domcontentloaded" });

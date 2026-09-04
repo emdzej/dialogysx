@@ -65,6 +65,21 @@
    * so the most this can do is check and, if access survived, open — otherwise
    * it shows the panel with a button that asks.
    */
+  /**
+   * Persist the selection.
+   *
+   * Merged into the settings rather than written over them: the source and the
+   * language live in the same object, and a naive write here would forget the
+   * tree every time somebody picked a model.
+   */
+  function persistSelection(): void {
+    const current = loadSettings();
+    const selection = app.selection;
+    saveSettings({ ...current, ...(selection ? { selection } : {}) });
+  }
+
+  app.onSelectionChange = persistSelection;
+
   async function restore(): Promise<void> {
     const settings = loadSettings();
     saved = settings.source;
@@ -73,7 +88,12 @@
       return;
     }
     if (settings.source.kind === "http") {
-      await app.open(new HttpTreeSource({ baseUrl: settings.source.url }), settings.source.url, settings.language);
+      await app.open(
+        new HttpTreeSource({ baseUrl: settings.source.url }),
+        settings.source.url,
+        settings.language,
+      );
+      await app.restoreSelection(settings.selection);
       return;
     }
     const handle = await loadDirectoryHandle();
@@ -87,13 +107,26 @@
     }
     if (await handleReadable(handle)) {
       await app.open(new LocalDirectorySource(handle), handle.name, settings.language);
+      await app.restoreSelection(settings.selection);
     } else {
       needsPermission = true;
       settingsOpen = true;
     }
   }
 
+  /**
+   * Boot once.
+   *
+   * `restore()` reads `app.models`, `app.vehicles`, `app.assemblies` — all
+   * `$state` — while putting the selection back, so an unguarded `$effect`
+   * *tracks* them, and writing them re-runs the effect: open, restore, write,
+   * re-run, forever. `booted` is a plain `let`, not `$state`, so testing it is
+   * not a tracked read either.
+   */
+  let booted = false;
   $effect(() => {
+    if (booted) return;
+    booted = true;
     void restore();
   });
 
@@ -107,7 +140,13 @@
     // Remembered only once it opened. Saving on click would make a typo the
     // thing the app reopens to on every future visit.
     saved = { kind: "http", url };
-    saveSettings({ source: saved, language: app.language });
+    const previous = loadSettings();
+    saveSettings({ ...previous, source: saved, language: app.language });
+    // Only the same tree gets its selection back: a different URL is a
+    // different import, and its PR groups may not contain that vehicle.
+    if (previous.source?.kind === "http" && previous.source.url === url) {
+      await app.restoreSelection(previous.selection);
+    }
     await clearDirectoryHandle();
     settingsOpen = false;
   }
@@ -147,11 +186,13 @@
       return;
     }
     needsPermission = false;
-    await app.open(new LocalDirectorySource(handle), handle.name, loadSettings().language);
+    const previous = loadSettings();
+    await app.open(new LocalDirectorySource(handle), handle.name, previous.language);
     if (app.status.kind === "error") {
       settingsError = app.status.message;
       return;
     }
+    await app.restoreSelection(previous.selection);
     settingsOpen = false;
   }
 
@@ -964,7 +1005,13 @@
   .workmain {
     min-width: 0;
   }
-  @media (max-width: 62rem) {
+  /*
+   * Collapses far later than `.split` does. The panel is 15.5rem, so it
+   * coexists with the rest well below the 62rem the drawing-and-parts split
+   * needs — sharing that breakpoint gave the menu the whole window at ~57rem,
+   * which is an ordinary laptop window.
+   */
+  @media (max-width: 34rem) {
     .workspace {
       grid-template-columns: 1fr;
     }

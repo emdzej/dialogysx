@@ -14,44 +14,48 @@ own static tree.
 
 ## Status
 
-**The storage format is cracked and validated.** The engine reads every
-catalogue dataset off a real disc: **32 datasets checked, 0 failures** — record
-lengths, key ordering and pointer bounds over all 583,035 index keys.
+**The storage format is cracked and validated, and the app works.** `dialogysx
+verify` walks every index on a real tree: **12 datasets, 576,034 keys, 0
+failures** — record lengths, key ordering and pointer bounds. Across the
+multi-language 7.5.6 set that is 32 datasets and 583,035 keys.
 
 Working today:
 
 - `@dialogysx/raf` — the storage engine, over HTTP `Range`, a local directory,
   or Node `fs`, behind one `read(pos, len)`.
 - `@dialogysx/catalogue` — vehicle envelope, part-number search, drawing
-  callouts, the criteria vocabulary.
+  callouts, the criteria vocabulary, the date and build-number resolution, and
+  the repair-documentation navigation.
 - `@dialogysx/catalogue` — the **applicability condition grammar**: all 41,758
   plates parse with every byte consumed, 423,076 callouts, 762,244 part
   candidates, three-valued evaluation.
-- `dialogysx` CLI — `import`, `verify`, `plates`, `organes`, `datasets`, `keys`,
-  `get`, `criteria`.
-- **A working browser client**: PR group → vehicle → assembly → plate, with the
-  drawing, clickable callout hotspots, and the parts table filtered by
-  applicability. 29 kB gzipped, no backend.
+- `@dialogysx/importer` — disc classification, import planning, and a zip
+  reader that works in a browser as well as in Node.
+- `dialogysx` CLI — `import`, `verify`, `plates`, `organes`, `docs`,
+  `datasets`, `keys`, `get`, `criteria`.
+- **A browser client**: brand → model → vehicle → assembly → plate, with the
+  drawing, clickable callout hotspots, part names, and the parts table filtered
+  by applicability. Plus a second view for the **repair documentation** — 2,131
+  English workshop manuals and technical notes, navigated by topic and filtered
+  to the vehicle. No backend.
+- **Import in the browser.** Mount an ISO, point at it, repeat: the wizard
+  builds a tree with no Node and no command line. It shares its planner with
+  the CLI, so both build the same tree from the same discs.
 
 Measured over localhost: a 7.2 MB index preloads in 119 ms, a part-number
 lookup costs 12 ms, and a depth-3 envelope query returning 18 records costs
 21 ms — with the 7.2 MB data file never downloaded.
 
-The `import` CLI merges the six discs into one folder, with per-component and
-per-language selection — the full set is 15.8 GB, the parts catalogue in one
-language is 0.08 GB.
-
-**Partly working:** parts-by-vehicle filtering. The condition grammar is done and
-swept over the whole catalogue, and **71.3 % of part candidates are decidable
-today**. The other 28.7 % contain a date or build-number comparison
-(`MILL`, `NFAB`, ...) which needs `VarDate.resolveDate` and the `Dates`
-dataset — until then they evaluate to _unknown_, which the interface should
-present as a question rather than an exclusion.
-
 **Not yet claimed:** that any parts list is _correct_. 41,758 records prove the
-grammar's shape; they do not prove "this part fits this car". That needs one
-vehicle whose right answer is known independently. See
-[`docs/data-format.md`](docs/data-format.md) §3.1 and §7.
+grammar's shape and every date view resolves, but that does not prove "this
+part fits this car". It needs one vehicle whose right answer is known
+independently. See [`docs/data-format.md`](docs/data-format.md) §3.1 and §7.
+
+**Also not verified:** the browser importer's scan-write cycle against a real
+disc. Driving a native directory picker needs interaction the test harness
+cannot supply, so what is checked is that the wizard opens and its worker
+boots. The zip reader under it _is_ proven, CRC-verified against three real
+archives.
 
 ## Why it can be client-side only
 
@@ -86,8 +90,8 @@ pnpm build
 
 ### Import the discs into one folder
 
-The set is six ISOs, and one language's data is spread across several of them.
-`import` merges them, choosing between the pieces:
+A disc set is five or six ISOs, and one language's data is spread across
+several of them. `import` merges them, choosing between the pieces:
 
 ```sh
 cli=apps/cli/dist/index.js
@@ -109,7 +113,10 @@ node $cli import *.iso -o data -c parts,criteria,drawings,repair-pdf -l ru
 ```
 
 It takes mount points as well as ISO files (`import /Volumes/... `), and only
-mounts ISOs itself on macOS. It resumes by default, writes a `manifest.json`
+mounts ISOs itself on macOS — falling back to
+`-imagekey diskimage-class=CRawDiskImage`, which is what an image whose length
+is not a whole number of 2048-byte sectors needs; `hdiutil` refuses those
+outright even when every file in them reads clean. It resumes by default, writes a `manifest.json`
 describing what landed, and **refuses to run** rather than let one disc silently
 overwrite another — which the Russian image archives really do. See
 [`docs/plan.md`](docs/plan.md#dialogysx-import--why-it-is-not-cp--r) for the
@@ -153,12 +160,15 @@ node apps/cli/dist/index.js import /Volumes/dialogysDVD1 -o data -l en
 pnpm dev                       # finds ./data on its own
 ```
 
-Open the URL it prints and click **Open URL**. The language comes from the
-tree's `manifest.json`, so an English-only import shows English criteria.
+Open the URL it prints. With nothing remembered the settings panel opens by
+itself; enter `/data` and press **Open**. The choice is saved, so later visits
+go straight to the catalogue. The language comes from the tree's
+`manifest.json`, so an English-only import shows English criteria.
 
-> **The repair documentation in this disc set is Russian and Swedish only.**
-> There is no English MR/NT data to import — `-l en` gives you a fully English
-> _parts catalogue_, which is what the browser currently shows anyway.
+> **Which languages you get depends on the disc set.** The 7.5.6 set's repair
+> documentation is Russian and Swedish only; the 4.55 set's is English —
+> 1,152 workshop manuals, 978 technical notes and ~40,000 structured
+> procedures. The parts catalogue is multi-language on either.
 
 ### Browse it
 
@@ -168,9 +178,36 @@ The dev server serves a tree at `/data` with `Range` support:
 DIALOGYSX_DATA=$PWD/data pnpm --filter @dialogysx/web dev
 ```
 
-Then "Open URL". `Range` is required — the client rejects a host that ignores it
-rather than reading the wrong bytes. "Open folder" reads a mounted disc or an
-imported tree directly, on browsers with the File System Access API.
+`Range` is required — the client rejects a host that ignores it rather than
+reading the wrong bytes, and it rejects an HTML response as "not a data tree"
+rather than parsing a 404 page as an index. A folder works too, on browsers
+with the File System Access API: it reads a mounted disc or an imported tree
+directly. A folder is remembered as well, but browsers drop a directory
+handle's permission on reload, so it needs one click to grant access again —
+the settings panel says so.
+
+An S3-compatible bucket works if it allows anonymous `GetObject` and sets CORS:
+`Range` is not a safelisted request header, so every read is preflighted, and
+`Content-Range` has to be in `ExposeHeaders`. Note that an HTTPS page cannot
+read an HTTP bucket — browsers block mixed content.
+
+### Import in the browser, with no CLI
+
+Mount your ISOs, then use the spanner in the top bar. It asks for a target
+folder — with **write** access, a different prompt from the read-only one the
+catalogue uses — then for each disc in turn, showing what it found before
+writing anything. Stop whenever you like: the accumulated state lives in the
+tree as `.dialogysx-import.json`, so an import resumes, and a tree the CLI
+started can be continued in the browser and the other way round.
+
+The manifest is written last, deliberately: an abandoned import leaves a tree
+with no manifest rather than one that looks complete.
+
+Chromium only — the File System Access API is. And `createWritable()` stages
+each file and swaps on close, so write traffic roughly doubles; the CLI is the
+faster path when you have Node.
+
+### Tests
 
 Browser tests need both a server and a tree, so `pnpm test` alone skips them:
 
@@ -178,6 +215,10 @@ Browser tests need both a server and a tree, so `pnpm test` alone skips them:
 DIALOGYSX_DATA=$PWD/data pnpm --filter @dialogysx/web dev --port 5199
 DIALOGYSX_E2E_URL=http://localhost:5199 pnpm test
 ```
+
+Thirteen of them, covering identification, the drawing and its hotspots, the
+parts table, criterion resolution, the documentation view and its PDF viewer,
+and that a remembered tree reopens without asking.
 
 | Script           | What it does                                              |
 | ---------------- | --------------------------------------------------------- |
@@ -187,16 +228,34 @@ DIALOGYSX_E2E_URL=http://localhost:5199 pnpm test
 | `pnpm typecheck` | Packages via `tsc`, and the Svelte app via `svelte-check` |
 | `pnpm check`     | Build, typecheck and test                                 |
 
+## Deployment
+
+Pushing to `main` builds and publishes the app to GitHub Pages at
+**[dialogysx.emdzej.pl](https://dialogysx.emdzej.pl)**. It ships **no vehicle
+data** — a visitor points it at their own tree, or builds one in the browser
+from their own discs, so a fresh visit lands on that panel.
+
+`base` is decided by whether `apps/web/public/CNAME` exists, because it is
+baked in at build time and a wrong one fails quietly: `index.html` still
+returns 200 and every asset 404s. The workflow greps the built HTML to prove
+the base took.
+
+CI runs build, typecheck, unit tests and a formatting check on every push and
+pull request. The browser suite skips itself there — it needs a data tree, and
+the catalogue is Renault's and is not in this repository, so **a green CI run
+says nothing about whether the interface works.**
+
 ## Layout
 
 ```
 apps/
-  cli        disc tooling: verify, inspect, and (later) build a static tree
+  cli        disc tooling: import, verify, inspect
   web        Svelte 5 + Vite browser client
 packages/
   core       shared types for the catalogue format
   raf        the storage engine and the three read backends
-  catalogue  parts domain: conditions, dates, plates, assemblies, session
+  catalogue  parts domain: conditions, dates, plates, assemblies, documents
+  importer   disc classification, import planning, a browser-capable zip reader
 docs/
 re/tools/    reverse-engineering scratch (the Python differential oracle)
 ```

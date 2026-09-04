@@ -22,10 +22,39 @@ export type SavedSource =
   /** `name` is for the interface; the handle itself is in IndexedDB. */
   | { kind: "folder"; name: string };
 
+/**
+ * What was last being looked at.
+ *
+ * Stored by *code* rather than by object: a saved model or vehicle has to be
+ * matched against the tree that is open next time, which may be a different
+ * import with different PR groups. Anything that no longer resolves is dropped
+ * silently — restoring half a selection is better than refusing to restore any
+ * of it, and much better than restoring a vehicle that is not in this tree.
+ *
+ * The plate is deliberately absent. Two thirds of assemblies resolve to exactly
+ * one, so it is usually not a choice at all, and a remembered plate that the
+ * narrowing no longer allows would be worse than the auto-selection.
+ */
+export interface SavedSelection {
+  brand?: string;
+  /** Model name, which is what `FamilyModels` and `modelList` both key on. */
+  model?: string;
+  /** The vehicle's PR group and criteria, enough to find its envelope row. */
+  vehicle?: { pr: string; criteria: Record<string, string> };
+  assembly?: string;
+  factory?: string;
+  buildNumber?: string;
+  /** Criterion answers the user supplied on top of the envelope row. */
+  answers?: Record<string, string>;
+  /** Which tab was showing. */
+  view?: "parts" | "docs";
+}
+
 export interface Settings {
   source?: SavedSource;
   /** Language the user last chose, if the tree offered a choice. */
   language?: string;
+  selection?: SavedSelection;
 }
 
 const KEY = "dialogysx.settings.v1";
