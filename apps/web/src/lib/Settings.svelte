@@ -121,27 +121,27 @@
     role="dialog"
     aria-modal="true"
     tabindex="-1"
-    aria-label="Settings"
+    aria-label={ui("settings.title")}
     data-testid="settings"
     onclick={(e) => e.stopPropagation()}
   >
     <header>
-      <span class="eyebrow">{firstRun ? "Open a data tree" : "Settings"}</span>
+      <span class="eyebrow">{firstRun ? ui("settings.firstRunTitle") : ui("settings.title")}</span>
       {#if !firstRun}
-        <button class="close" onclick={onClose} aria-label="Close" data-testid="settings-close">
+        <button class="close" onclick={onClose} aria-label={ui("chrome.close")} data-testid="settings-close">
           <X size={16} strokeWidth={1.9} />
         </button>
       {/if}
     </header>
 
-    <div class="tabs" role="tablist" aria-label="Settings sections">
+    <div class="tabs" role="tablist" aria-label={ui("settings.sections")}>
       <button
         type="button"
         role="tab"
         aria-selected={tab === "data"}
         class:on={tab === "data"}
         onclick={() => (tab = "data")}
-        data-testid="tab-data">Data</button
+        data-testid="tab-data">{ui("settings.data")}</button
       >
       <button
         type="button"
@@ -155,23 +155,15 @@
 
     <div class="body" class:hidden={tab !== "data"}>
       {#if firstRun}
-        <p class="lede">
-          dialogysx ships no vehicle data. Point it at a tree built with
-          <code>dialogysx import</code> — served over HTTP with <code>Range</code> support, or a
-          folder on this machine.
-        </p>
+        <p class="lede">{ui("settings.lede")}</p>
       {/if}
 
       {#if error}<p class="error" data-testid="settings-error">{error}</p>{/if}
       {#if busy}<p class="busy">{busy}&hellip;</p>{/if}
 
       <section>
-        <h2><Link size={14} strokeWidth={1.9} /> Static tree over HTTP</h2>
-        <p class="hint">
-          Any host that honours <code>Range</code>: a static server, or an S3 bucket with public
-          read and CORS. The catalogue is sampled by byte range, so the multi-gigabyte files are
-          never downloaded.
-        </p>
+        <h2><Link size={14} strokeWidth={1.9} /> {ui("settings.httpTitle")}</h2>
+        <p class="hint">{ui("settings.httpHint")}</p>
         <form
           class="row"
           onsubmit={(e) => {
@@ -182,51 +174,47 @@
           <input
             bind:value={url}
             spellcheck="false"
-            placeholder="/data or http://host:port/bucket"
-            aria-label="Static tree URL"
+            placeholder={ui("settings.urlPlaceholder")}
+            aria-label={ui("settings.urlLabel")}
             data-testid="settings-url"
           />
-          <button type="submit" class="primary" disabled={url.trim().length === 0}>Open</button>
+          <button type="submit" class="primary" disabled={url.trim().length === 0}>{ui("settings.open")}</button>
         </form>
         {#if saved?.kind === "http"}
           <p class="current" data-testid="settings-current-http">
-            Remembered: <code>{saved.url}</code>
+            {ui("settings.remembered")} <code>{saved.url}</code>
           </p>
         {/if}
       </section>
 
       <section>
-        <h2><FolderOpen size={14} strokeWidth={1.9} /> Folder on this machine</h2>
+        <h2><FolderOpen size={14} strokeWidth={1.9} /> {ui("settings.folderTitle")}</h2>
         {#if !folderSupported}
-          <p class="hint">
-            This browser has no File System Access API — it is Chromium-only today. Use an HTTP
-            tree instead.
-          </p>
+          <p class="hint">{ui("settings.noFsaHint")}</p>
         {:else}
-          <p class="hint">
-            An imported tree, or a mounted disc's <code>dialogys/data</code> directory. Nothing is
-            uploaded; files are read straight off disk.
-          </p>
+          <p class="hint">{ui("settings.folderHint")}</p>
           {#if saved?.kind === "folder"}
             <p class="current" data-testid="settings-current-folder">
-              Remembered: <code>{saved.name}</code>
+              {ui("settings.remembered")} <code>{saved.name}</code>
               {#if needsPermission}
-                <span class="warn">— needs permission again after a reload</span>
+                <span class="warn">{ui("settings.needsPermission")}</span>
               {/if}
             </p>
             <div class="row">
               <button type="button" class="primary" onclick={onReopenFolder}>
-                {needsPermission ? `Grant access to ${saved.name}` : `Reopen ${saved.name}`}
+                {needsPermission
+                  ? ui("settings.grantAccess", { name: saved.name })
+                  : ui("settings.reopen", { name: saved.name })}
               </button>
-              <button type="button" onclick={onPickFolder}>Choose another&hellip;</button>
+              <button type="button" onclick={onPickFolder}>{ui("settings.chooseAnother")}</button>
               <button type="button" class="danger" onclick={onForgetFolder} data-testid="forget">
-                <Trash2 size={14} strokeWidth={1.9} /> Forget
+                <Trash2 size={14} strokeWidth={1.9} /> {ui("settings.forget")}
               </button>
             </div>
           {:else}
             <div class="row">
               <button type="button" class="primary" onclick={onPickFolder} data-testid="pick-folder">
-                Open folder&hellip;
+                {ui("settings.openFolder")}
               </button>
             </div>
           {/if}
@@ -235,25 +223,19 @@
 
       {#if onImport}
         <section>
-          <h2><HardDrive size={14} strokeWidth={1.9} /> No tree yet?</h2>
-          <p class="hint">
-            Build one from mounted Dialogys discs, here in the browser — no command line. You
-            will be asked for a target folder and then for each disc in turn.
-          </p>
+          <h2><HardDrive size={14} strokeWidth={1.9} /> {ui("settings.noTreeTitle")}</h2>
+          <p class="hint">{ui("settings.noTreeHint")}</p>
           <div class="row">
             <button type="button" onclick={onImport} data-testid="settings-import">
-              Import from discs&hellip;
+              {ui("settings.importButton")}
             </button>
           </div>
         </section>
       {/if}
 
-      <p class="note">
-        <!-- Said plainly because the asymmetry is surprising: a URL reopens by
-             itself, a folder cannot. -->
-        A URL is reopened automatically next time. A folder is remembered too, but browsers drop
-        its permission on reload, so it needs one click to grant access again.
-      </p>
+      <!-- Said plainly because the asymmetry is surprising: a URL reopens by
+           itself, a folder cannot. -->
+      <p class="note">{ui("settings.reopenNote")}</p>
     </div>
 
     {#if tab === "language"}
@@ -300,18 +282,11 @@
         {/if}
 
         <section>
-          <h2>Part names</h2>
+          <h2>{ui("settings.partNamesTitle")}</h2>
           {#if partNameCountry}
-            <p class="hint">
-              Resolved from <code>{partNameCountry}</code>. Part descriptions ship per
-              <em>country</em> rather than per language — several countries share one language,
-              and each tariff names only what is sold there, so coverage is partial by design.
-            </p>
+            <p class="hint">{ui("settings.partNamesResolved", { country: partNameCountry })}</p>
           {:else}
-            <p class="hint warn">
-              None in this tree. Import the <code>part-names</code> component to get them;
-              without it parts show a reference and no description.
-            </p>
+            <p class="hint warn">{ui("settings.partNamesMissing")}</p>
           {/if}
         </section>
       </div>

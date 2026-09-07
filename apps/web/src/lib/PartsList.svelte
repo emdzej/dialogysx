@@ -10,6 +10,7 @@
   // Condition text is precomputed by the session, which holds the PR group's
   // value table; the interface has no way to resolve operand indices itself.
   import Info from "@lucide/svelte/icons/info";
+  import { ui } from "./ui.svelte.js";
   import X from "@lucide/svelte/icons/x";
   import type { ResolvedPlate } from "@dialogysx/catalogue";
 
@@ -50,23 +51,22 @@
       role="dialog"
       aria-modal="true"
       tabindex="-1"
-      aria-label="When this part applies"
+      aria-label={ui("parts.detailTitle")}
       data-testid="applies-detail"
       onclick={(e) => e.stopPropagation()}
     >
       <header>
         <code>{detail.row.cand.ref}</code>
         {#if detail.row.cand.name}<span class="dname">{detail.row.cand.name}</span>{/if}
-        <button class="close" onclick={() => (detail = undefined)} aria-label="Close">
+        <button class="close" onclick={() => (detail = undefined)} aria-label={ui("chrome.close")}>
           <X size={16} strokeWidth={1.9} />
         </button>
       </header>
       <p class="lead">
         {#if detail.row.state === "unknown"}
-          Undecided: this vehicle does not answer every criterion below. Fits if <em>any</em> of
-          these hold.
+          {ui("parts.detailUndecidedLead")}
         {:else}
-          Fits because <em>one</em> of these holds.
+          {ui("parts.detailFitsLead")}
         {/if}
       </p>
       <ol>
@@ -79,15 +79,15 @@
 {/if}
 
 {#if rows.length === 0}
-  <p class="empty">No parts on this plate fit the selected vehicle.</p>
+  <p class="empty">{ui("parts.empty")}</p>
 {:else}
   <table>
     <thead>
       <tr>
-        <th class="num">No.</th>
-        <th>Reference</th>
-        <th>Description</th>
-        <th class="cond" aria-label="Applies"></th>
+        <th class="num">{ui("parts.no")}</th>
+        <th>{ui("parts.reference")}</th>
+        <th>{ui("parts.description")}</th>
+        <th class="cond" aria-label={ui("parts.applies")}></th>
       </tr>
     </thead>
     <tbody>
@@ -103,11 +103,11 @@
           <td class="ref">
             <code>{row.cand.ref}</code>
             {#if row.cand.replacements}
-              <span class="sup" title="Superseded by">&rarr; {row.cand.replacements.join(", ")}</span>
+              <span class="sup" title={ui("parts.supersededBy")}>&rarr; {row.cand.replacements.join(", ")}</span>
             {/if}
             {#if row.cand.needsChoice}
-              <span class="tag choice" title="The original asks the user to pick between variants"
-                >choice</span
+              <span class="tag choice" title={ui("parts.choiceTitle")}
+                >{ui("parts.choice")}</span
               >
             {/if}
           </td>
@@ -118,13 +118,13 @@
               <!-- A tariff names only the parts sold in that market, so under
                    half of all references have a description. Say so rather
                    than leave the cell blank, which reads as a bug. -->
-              <span class="dim" title="This tariff does not name this part">not in this tariff</span>
+              <span class="dim" title={ui("parts.notInTariffTitle")}>{ui("parts.notInTariff")}</span>
             {/if}
           </td>
           <td class="cond">
             {#if row.cand.applicabilityUnresolved}
-              <span class="dim" title="This plate references a condition that is not in its pool"
-                >damaged</span
+              <span class="dim" title={ui("parts.damagedTitle")}
+                >{ui("parts.damaged")}</span
               >
             {:else if row.cand.conditionLines && row.cand.conditionLines.length > 0}
               <!--
@@ -139,11 +139,11 @@
                 class="why"
                 class:undecided={row.state === "unknown"}
                 title={row.state === "unknown"
-                  ? "Undecided — this vehicle does not answer every criterion. Click for the conditions."
-                  : "Click for the conditions this part applies under"}
+                  ? ui("parts.whyUndecidedTitle")
+                  : ui("parts.whyTitle")}
                 aria-label={row.state === "unknown"
-                  ? `${row.cand.ref}: undecided, show the conditions`
-                  : `${row.cand.ref}: show the conditions`}
+                  ? ui("parts.whyUndecidedLabel", { ref: row.cand.ref })
+                  : ui("parts.whyLabel", { ref: row.cand.ref })}
                 onclick={(e) => (e.stopPropagation(), (detail = { row, i }))}
               >
                 <Info size={13} strokeWidth={1.9} />

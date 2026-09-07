@@ -148,6 +148,23 @@ export function setUiPreference(preference: UiPreference): void {
   syncDocumentLanguage();
 }
 
+/**
+ * A number, grouped for the interface locale.
+ *
+ * `toLocaleString()` with no argument formats for the *system* locale, which
+ * is a different thing: a Polish interface on an English machine would group
+ * as `1,234` where it wants `1 234`. Passing the resolved locale is the whole
+ * fix, and reading the rune keeps it reactive like `ui()`.
+ *
+ * Counts are interpolated as a separate `n` variable rather than through
+ * `{{count}}`, because i18next uses `count` to pick the plural form and
+ * substitutes it unformatted.
+ */
+export function num(value: number): string {
+  void state.resolved;
+  return value.toLocaleString(state.resolved);
+}
+
 /** A message key, checked against `en.json` — see `i18n/i18next.d.ts`. */
 export type MessageId = ParseKeys<"app">;
 

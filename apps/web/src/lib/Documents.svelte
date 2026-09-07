@@ -9,6 +9,7 @@
    * is why the same manual reappears under several names.
    */
   import Download from "@lucide/svelte/icons/download";
+  import { num, ui } from "./ui.svelte.js";
   import ExternalLink from "@lucide/svelte/icons/external-link";
   import X from "@lucide/svelte/icons/x";
   import type { DocElement, DocRef } from "@dialogysx/catalogue";
@@ -53,36 +54,34 @@
   // Falling back to the flat document list beats showing an empty pane.
   const shown = $derived(current?.docs ?? documents);
 
-  const kindLabel = (k: DocRef["kind"]) => (k === "MR" ? "Repair method" : "Technical note");
+  const kindLabel = (k: DocRef["kind"]) =>
+    k === "MR" ? ui("docs.repairMethod") : ui("docs.technicalNote");
 </script>
 
 <div class="docs">
   {#if unavailable}
-    <p class="none">
-      No repair documentation for this model. Its name is not in
-      <code>pr/FamilleModeleAll.dat</code>, which is what maps a model to a document family —
-      so the original has none for it either.
-    </p>
+    <p class="none">{ui("docs.unavailable")}</p>
   {:else if loading}
-    <p class="none">reading the document indexes…</p>
+    <p class="none">{ui("docs.loading")}</p>
   {:else if elements.length === 0}
     <p class="none">
-      {query.trim().length > 0
-        ? "Nothing matches that."
-        : "No documents apply to this vehicle."}
+      {query.trim().length > 0 ? ui("docs.noMatch") : ui("docs.noneForVehicle")}
     </p>
   {:else}
     <div class="head">
       <input
         data-testid="doc-query"
         type="search"
-        placeholder="filter — brake, engine, MR-305…"
+        placeholder={ui("docs.filterPlaceholder")}
         value={query}
         oninput={(e) => onQuery(e.currentTarget.value)}
       />
       <span class="count" data-testid="doc-count">
-        {elements.length} topics &middot; {documents.length} documents
-        {#if family}<span class="dim">&middot; family {family}</span>{/if}
+        {ui("docs.topics", { count: elements.length, n: num(elements.length) })} &middot; {ui(
+          "docs.documents",
+          { count: documents.length, n: num(documents.length) },
+        )}
+        {#if family}<span class="dim">&middot; {ui("docs.family", { id: family })}</span>{/if}
       </span>
     </div>
 
@@ -96,7 +95,7 @@
             class:active={selected === undefined}
             onclick={() => (selected = undefined)}
           >
-            <span class="t">All topics</span>
+            <span class="t">{ui("docs.allTopics")}</span>
             <span class="n">{documents.length}</span>
           </button>
         </li>
@@ -151,22 +150,22 @@
             href={open.url}
             target="_blank"
             rel="noopener"
-            title="Open in a new tab"
-            aria-label="Open in a new tab"><ExternalLink size={15} strokeWidth={1.9} /></a
+            title={ui("docs.openInTab")}
+            aria-label={ui("docs.openInTab")}><ExternalLink size={15} strokeWidth={1.9} /></a
           >
           <a
             class="act"
             href={open.url}
             download={`${open.doc.numero}.pdf`}
-            title="Download"
-            aria-label="Download"><Download size={15} strokeWidth={1.9} /></a
+            title={ui("docs.download")}
+            aria-label={ui("docs.download")}><Download size={15} strokeWidth={1.9} /></a
           >
           <button
             type="button"
             class="act close"
             onclick={onClose}
-            title="Close"
-            aria-label="Close"><X size={15} strokeWidth={1.9} /></button
+            title={ui("chrome.close")}
+            aria-label={ui("chrome.close")}><X size={15} strokeWidth={1.9} /></button
           >
         </div>
         <iframe

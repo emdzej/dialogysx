@@ -12,6 +12,7 @@
   Not a credits screen.
 -->
 <script lang="ts">
+  import { ui } from "./ui.svelte.js";
   interface Props {
     onClose: () => void;
   }
@@ -32,13 +33,13 @@
     role="dialog"
     aria-modal="true"
     tabindex="-1"
-    aria-label="About dialogysx"
+    aria-label={ui("chrome.about")}
     data-testid="about"
     onclick={(e) => e.stopPropagation()}
   >
     <header>
-      <span class="eyebrow">About</span>
-      <button class="close" onclick={onClose} aria-label="Close">×</button>
+      <span class="eyebrow">{ui("about.eyebrow")}</span>
+      <button class="close" onclick={onClose} aria-label={ui("chrome.close")}>×</button>
     </header>
 
     <div class="body">
@@ -47,57 +48,36 @@
         <span class="ver">{__APP_VERSION__}</span>
       </p>
 
-      <p>
-        A parts catalogue and repair-documentation browser for Renault and Dacia vehicles: pick a
-        model and a vehicle, and it shows the exploded drawings with the part numbers that fit,
-        plus the workshop manuals and technical notes that apply.
-      </p>
+      <p>{ui("about.what")}</p>
 
-      <p>
-        It runs entirely in the browser. Nothing is uploaded and there is no server component —
-        the catalogue's own <code>(position, length)</code> addressing is read with HTTP
-        <code>Range</code> requests, or straight off a folder on this machine, so the multi-gigabyte
-        data files are sampled rather than downloaded.
-      </p>
+      <p>{ui("about.howItRuns")}</p>
 
-      <p>
-        A clean-room reimplementation of Renault's <strong>Dialogys</strong> 7.5.6, written from
-        its data formats. Not affiliated with, endorsed by, or supported by Renault.
-      </p>
+      <p>{ui("about.cleanRoom")}</p>
 
       <div class="links">
         <a class="primary" href={`${__REPO_URL__}/blob/main/docs/data-format.md`} target="_blank" rel="noopener noreferrer">
-          Format notes
+          {ui("about.formatNotes")}
         </a>
-        <a href={__REPO_URL__} target="_blank" rel="noopener noreferrer">Source</a>
-        <a href={`${__REPO_URL__}/issues`} target="_blank" rel="noopener noreferrer">Report a problem</a>
+        <a href={__REPO_URL__} target="_blank" rel="noopener noreferrer">{ui("about.source")}</a>
+        <a href={`${__REPO_URL__}/issues`} target="_blank" rel="noopener noreferrer">{ui("about.reportProblem")}</a>
       </div>
 
       <div class="caveat">
-        <h2>The data is not included, and not redistributable</h2>
-        <p>
-          The catalogue, the drawings and the repair documents are Renault/Dacia's. This program
-          reads a tree you build yourself from discs you have; it ships no vehicle data and gives
-          you no right to pass any on.
-        </p>
+        <h2>{ui("about.dataTitle")}</h2>
+        <p>{ui("about.dataBody")}</p>
       </div>
 
       <div class="caveat warn">
-        <h2>Check anything you rely on</h2>
-        <p>
-          The applicability rules were recovered by reading the original program, and they hold
-          across all 41,758 plates in the catalogue. That is <em>not</em> the same as a verified
-          parts list: no result here has yet been checked against an independently known answer.
-          Confirm a part number before you buy or fit it.
-        </p>
+        <h2>{ui("about.verifyTitle")}</h2>
+        <p>{ui("about.verifyBody")}</p>
       </div>
 
       <p class="licence">
-        Licensed under <a
+        {ui("about.licencePrefix")} <a
           href="https://polyformproject.org/licenses/noncommercial/1.0.0/"
           target="_blank"
-          rel="noopener noreferrer">PolyForm Noncommercial 1.0.0</a
-        >. Provided as is, without warranty of any kind.
+          rel="noopener noreferrer">{ui("about.licenceName")}</a
+        >{ui("about.licenceSuffix")}
       </p>
     </div>
   </div>
@@ -176,10 +156,6 @@
     font-size: 12.5px;
     line-height: 1.55;
     color: var(--ink-soft);
-  }
-  code {
-    font-family: var(--mono);
-    font-size: 11.5px;
   }
   a {
     color: var(--blue);

@@ -14,6 +14,7 @@
   import FolderOpen from "@lucide/svelte/icons/folder-open";
   import HardDrive from "@lucide/svelte/icons/hard-drive";
   import X from "@lucide/svelte/icons/x";
+  import { num, ui } from "./ui.svelte.js";
   import Check from "@lucide/svelte/icons/check";
   import {
     COMPONENTS,
@@ -61,7 +62,6 @@
   let seenLangs = $state<string[]>([]);
 
   const gb = (n: number) => `${(n / 1e9).toFixed(2)} GB`;
-  const num = (n: number) => n.toLocaleString();
 
   let worker: Worker | undefined;
 
@@ -89,7 +89,7 @@
     error = undefined;
     const picker = globalThis.showDirectoryPicker;
     if (typeof picker !== "function") {
-      error = "This browser has no File System Access API. Use the CLI importer instead.";
+      error = ui("import.noFsa");
       return;
     }
     try {
@@ -264,11 +264,11 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <div class="scrim" role="presentation">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="dialog" role="dialog" aria-modal="true" aria-label="Import from discs" data-testid="import">
+  <div class="dialog" role="dialog" aria-modal="true" aria-label={ui("import.title")} data-testid="import">
     <header>
-      <span class="eyebrow">Import from discs</span>
+      <span class="eyebrow">{ui("import.title")}</span>
       {#if stage !== "writing"}
-        <button class="close" onclick={onClose} aria-label="Close" data-testid="import-close">
+        <button class="close" onclick={onClose} aria-label={ui("chrome.close")} data-testid="import-close">
           <X size={16} strokeWidth={1.9} />
         </button>
       {/if}
@@ -278,31 +278,33 @@
       {#if error}<p class="error" data-testid="import-error">{error}</p>{/if}
 
       {#if stage === "target"}
-        <p>
-          Choose an empty folder to build the tree in. It needs <strong>write</strong> access —
-          a different prompt from the read-only one the catalogue uses.
-        </p>
-        <p class="hint">
-          Mount your ISOs first (double-click each one). You will be asked for them one at a
-          time, and can stop whenever you like.
-        </p>
+        <p>{ui("import.targetLead")}</p>
+        <p class="hint">{ui("import.targetHint")}</p>
         <div class="row">
           <button class="primary" onclick={pickTarget} data-testid="pick-target">
-            <FolderOpen size={14} strokeWidth={1.9} /> Choose target folder&hellip;
+            <FolderOpen size={14} strokeWidth={1.9} /> {ui("import.chooseTarget")}
           </button>
         </div>
       {:else if stage === "disc"}
         <p>
-          Building in <code>{target?.name}</code>.
+          {ui("import.buildingIn", { name: target?.name ?? "" })}
           {#if Object.keys(carried.written).length > 0}
             <span class="resume" data-testid="import-resume">
-              {num(Object.keys(carried.written).length)} files already there — they will be skipped.
+              {ui("import.alreadyThere", {
+                count: Object.keys(carried.written).length,
+                n: num(Object.keys(carried.written).length),
+              })}
             </span>
           {/if}
         </p>
 
         <details class="components">
-          <summary>{chosen.size} of {COMPONENTS.length} components selected</summary>
+          <summary
+          >{ui("import.componentsSelected", {
+            chosen: chosen.size,
+            total: COMPONENTS.length,
+          })}</summary
+        >
           <ul>
             {#each COMPONENTS as c (c.id)}
               <li>
@@ -314,7 +316,7 @@
                     onchange={() => toggle(c.id)}
                   />
                   <span class="cid">{c.id}</span>
-                  {#if c.required}<span class="req">always</span>{/if}
+                  {#if c.required}<span class="req">{ui("import.always")}</span>{/if}
                   <span class="cwhat">{c.what}</span>
                 </label>
               </li>
@@ -325,10 +327,14 @@
         <div class="row">
           <button class="primary" onclick={pickDisc} disabled={busy} data-testid="pick-disc">
             <HardDrive size={14} strokeWidth={1.9} />
-            {busy ? "Scanning…" : results.length === 0 ? "Choose first disc…" : "Choose next disc…"}
+            {busy
+              ? ui("import.scanning")
+              : results.length === 0
+                ? ui("import.chooseFirstDisc")
+                : ui("import.chooseNextDisc")}
           </button>
           {#if Object.keys(carried.written).length > 0}
-            <button onclick={finish} disabled={busy} data-testid="no-more">No more discs</button>
+            <button onclick={finish} disabled={busy} data-testid="no-more">{ui("import.noMoreDiscs")}</button>
           {/if}
         </div>
       {:else if stage === "review" && plan && disc}
@@ -337,25 +343,43 @@
         </p>
         <table>
           <tbody>
-            <tr><th>To write</th><td>{num(plan.files)} files, {gb(plan.bytes)}</td></tr>
+            <tr
+              ><th>{ui("import.toWrite")}</th><td
+                >{ui("import.filesAndSize", {
+                  count: plan.files,
+                  n: num(plan.files),
+                  size: gb(plan.bytes),
+                })}</td
+              ></tr
+            >
             {#if plan.skipped > 0}
-              <tr><th>Already there</th><td>{num(plan.skipped)} files, skipped</td></tr>
+              <tr
+                ><th>{ui("import.alreadyThereRow")}</th><td
+                  >{ui("import.filesSkipped", { count: plan.skipped, n: num(plan.skipped) })}</td
+                ></tr
+              >
             {/if}
             {#if plan.unclaimed.length > 0}
               <!-- Reported, not copied. This is how `TM.zip`, `tarif.zip` and
                    `REACH.zip` were found in the first place. -->
               <tr>
-                <th>Unclaimed</th>
+                <th>{ui("import.unclaimed")}</th>
                 <td class="warn">
-                  {num(plan.unclaimed.length)} files match no component — not copied
+                  {ui("import.unclaimedDetail", {
+                    count: plan.unclaimed.length,
+                    n: num(plan.unclaimed.length),
+                  })}
                 </td>
               </tr>
             {/if}
             {#if plan.conflicts.length > 0}
               <tr>
-                <th>Conflicts</th>
+                <th>{ui("import.conflicts")}</th>
                 <td class="bad" data-testid="import-conflicts">
-                  {num(plan.conflicts.length)} files differ from what is already there — skipped
+                  {ui("import.conflictsDetail", {
+                    count: plan.conflicts.length,
+                    n: num(plan.conflicts.length),
+                  })}
                 </td>
               </tr>
             {/if}
@@ -367,7 +391,7 @@
             <li>
               <span class="mark">{chosen.has(id) ? "+" : "−"}</span>
               <span class="cid">{id}</span>
-              <span class="n">{num(t.files)} files</span>
+              <span class="n">{ui("import.tallyFiles", { count: t.files, n: num(t.files) })}</span>
               <span class="n">{gb(t.bytes)}</span>
             </li>
           {/each}
@@ -375,7 +399,7 @@
 
         {#if seenLangs.length > 1}
           <div class="langs" data-testid="import-languages">
-            <span class="llabel">Languages</span>
+            <span class="llabel">{ui("import.languages")}</span>
             {#each seenLangs as code (code)}
               <label>
                 <input
@@ -392,64 +416,68 @@
 
         <div class="row">
           <button class="primary" onclick={runDisc} data-testid="write-disc" disabled={busy}>
-            Write {num(plan.files)} files
+            {ui("import.writeFiles", { count: plan.files, n: num(plan.files) })}
           </button>
-          <button onclick={() => (stage = "disc")}>Choose a different disc</button>
+          <button onclick={() => (stage = "disc")}>{ui("import.chooseDifferentDisc")}</button>
         </div>
       {:else if stage === "writing"}
-        <p>Writing {disc?.kind} &mdash; do not close this tab.</p>
+        <p>{ui("import.writing", { kind: disc?.kind ?? "" })}</p>
         <div class="bar" data-testid="import-progress">
           <div class="fill" style={`width: ${pct.toFixed(1)}%`}></div>
         </div>
         <p class="mono">
-          {progress ? `${num(progress.done)}/${num(progress.total)}` : "starting"}
+          {progress ? `${num(progress.done)}/${num(progress.total)}` : ui("import.starting")}
           &middot; {progress ? gb(progress.bytesDone) : "0.00 GB"} of
           {progress ? gb(progress.bytesTotal) : "?"}
         </p>
         <p class="hint current">{progress?.current ?? ""}</p>
       {:else if stage === "between"}
-        <p><Check size={14} strokeWidth={1.9} /> Written.</p>
+        <p><Check size={14} strokeWidth={1.9} /> {ui("import.written")}</p>
         <ul class="results">
           {#each results as r, i (i)}
             <li>
-              {r.label}: {num(r.result.copied)} copied,
-              {num(r.result.extractedEntries)} extracted,
-              {gb(r.result.bytesWritten)}
+              {ui("import.resultLine", {
+                label: r.label,
+                copied: num(r.result.copied),
+                extracted: num(r.result.extractedEntries),
+                size: gb(r.result.bytesWritten),
+              })}
               {#if r.result.entryConflicts.length > 0}
                 <span class="bad">
-                  — {num(r.result.entryConflicts.length)} archive entries clashed
+                  {ui("import.entryClashes", {
+                    count: r.result.entryConflicts.length,
+                    n: num(r.result.entryConflicts.length),
+                  })}
                 </span>
               {/if}
             </li>
           {/each}
         </ul>
-        <p class="hint">
-          Mount the next ISO now if you have one. Nothing is lost by stopping: the tree is
-          usable for whatever has been imported, and you can come back to it later.
-        </p>
+        <p class="hint">{ui("import.betweenHint")}</p>
         <div class="row">
           <button class="primary" onclick={pickDisc} disabled={busy} data-testid="another-disc">
-            <HardDrive size={14} strokeWidth={1.9} /> Add another disc&hellip;
+            <HardDrive size={14} strokeWidth={1.9} /> {ui("import.addAnother")}
           </button>
           <button onclick={finish} disabled={busy} data-testid="finish-import">
-            No more data &mdash; finish
+            {ui("import.finishImport")}
           </button>
         </div>
       {:else if stage === "finished"}
-        <p><Check size={14} strokeWidth={1.9} /> Tree built in <code>{target?.name}</code>.</p>
-        <p class="mono">{num(filesWritten)} files written &middot; {gb(totalWritten)}</p>
-        <p class="hint">
-          The manifest is written, so the app can read this tree. Run
-          <code>dialogysx verify -d &lt;folder&gt;</code> if you want the indexes checked — the
-          browser importer does not count keys.
+        <p>
+          <Check size={14} strokeWidth={1.9} />
+          {ui("import.treeBuiltIn", { name: target?.name ?? "" })}
         </p>
+        <p class="mono">
+          {ui("import.filesWritten", { count: filesWritten, n: num(filesWritten) })} &middot; {gb(totalWritten)}
+        </p>
+        <p class="hint">{ui("import.finishedHint")}</p>
         <div class="row">
           <button
             class="primary"
             onclick={() => target && onFinished(target)}
-            data-testid="open-tree">Open it now</button
+            data-testid="open-tree">{ui("import.openNow")}</button
           >
-          <button onclick={onClose}>Close</button>
+          <button onclick={onClose}>{ui("chrome.close")}</button>
         </div>
       {/if}
     </div>
