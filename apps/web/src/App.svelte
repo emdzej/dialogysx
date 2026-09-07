@@ -29,6 +29,7 @@
   import Wrench from "@lucide/svelte/icons/wrench";
   import Import from "./lib/Import.svelte";
   import Settings from "./lib/Settings.svelte";
+  import { ui } from "./lib/ui.svelte.js";
   import { HttpTreeSource } from "./lib/http-source";
   import { csfsSource } from "./lib/csfs-source";
   import { isSupported, LocalDirectorySource, revokeImageUrl } from "./lib/local-source";
@@ -204,12 +205,12 @@
     settingsError = undefined;
     const handle = await loadDirectoryHandle();
     if (!handle) {
-      settingsError = "That folder is no longer remembered. Choose it again.";
+      settingsError = ui("splash.folderForgotten");
       saved = undefined;
       return;
     }
     if (!(await handleReadable(handle)) && !(await requestHandleAccess(handle))) {
-      settingsError = "Access to that folder was denied.";
+      settingsError = ui("splash.folderDenied");
       return;
     }
     needsPermission = false;
@@ -340,7 +341,7 @@
       <button
         class="wordmark"
         onclick={() => (aboutOpen = true)}
-        title="About dialogysx"
+        title={ui("chrome.about")}
         aria-haspopup="dialog"
         data-testid="wordmark">dialogys<span class="accent">x</span></button
       >
@@ -349,7 +350,7 @@
         href={`${__REPO_URL__}/releases/tag/${__APP_VERSION__}`}
         target="_blank"
         rel="noopener noreferrer"
-        title="Release notes"
+        title={ui("chrome.releaseNotes")}
         data-testid="version">{__APP_VERSION__}</a
       >
       <a
@@ -357,8 +358,8 @@
         href={__REPO_URL__}
         target="_blank"
         rel="noopener noreferrer"
-        title="Source on GitHub"
-        aria-label="Source on GitHub"
+        title={ui("chrome.github")}
+        aria-label={ui("chrome.github")}
         data-testid="repo"
       >
         <!-- GitHub's own mark, inlined so it takes `currentColor` and needs no
@@ -378,17 +379,17 @@
       <button
         class="gear"
         onclick={() => (importOpen = true)}
-        title="Import from discs"
+        title={ui("chrome.import")}
         aria-haspopup="dialog"
-        aria-label="Import from discs"
+        aria-label={ui("chrome.import")}
         data-testid="tools-open"><Wrench size={16} strokeWidth={1.9} /></button
       >
       <button
         class="gear"
         onclick={() => (settingsOpen = true)}
-        title="Settings"
+        title={ui("chrome.settings")}
         aria-haspopup="dialog"
-        aria-label="Settings"
+        aria-label={ui("chrome.settings")}
         data-testid="settings-open"><SettingsIcon size={16} strokeWidth={1.9} /></button
       >
     </div>
@@ -402,11 +403,11 @@
         <!-- Also shown in the dialog while it is open; here for when it is
              not, so a failed restore is not a blank page. -->
         <p class="error">{app.status.message}</p>
-        <button class="retry" onclick={() => (settingsOpen = true)}>Choose a data tree</button>
+        <button class="retry" onclick={() => (settingsOpen = true)}>{ui("splash.chooseTree")}</button>
       {:else if !settingsOpen}
         <p>
-          No data tree open. <button class="retry" onclick={() => (settingsOpen = true)}
-            >Choose one</button
+          {ui("splash.noTree")} <button class="retry" onclick={() => (settingsOpen = true)}
+            >{ui("splash.chooseOne")}</button
           >
         </p>
       {/if}
@@ -416,7 +417,7 @@
       {#if app.brands.length > 1}
         <Combo
           testid="brands"
-          label="Brand"
+          label={ui("identify.brand")}
           items={[...app.brands]}
           text={(b) => b.label}
           key={(b) => b.id}
@@ -428,7 +429,7 @@
 
       <Combo
         testid="models"
-        label="Model"
+        label={ui("identify.model")}
         items={app.models}
         text={(m) => m.name}
         key={(m) => m.name}
@@ -439,7 +440,7 @@
 
       <Combo
         testid="vehicles"
-        label="Vehicle"
+        label={ui("identify.vehicle")}
         items={app.vehicles}
         text={vehicleLabel}
         key={(v) => vehicleKey(v)}
@@ -452,14 +453,14 @@
            factory: `resolveDate` compares `factory + number` against the Dates
            table, so one without the other decides nothing. -->
       <label class:off={!app.vehicle}>
-        <span>Factory</span>
+        <span>{ui("identify.factory")}</span>
         <select
           data-testid="factory"
           disabled={!app.vehicle || app.factories.length === 0}
           bind:value={app.factory}
           onchange={() => app.refine()}
         >
-          <option value="">any</option>
+          <option value="">{ui("identify.any")}</option>
           {#each app.factories as f (f)}
             <option value={f}>{f}</option>
           {/each}
@@ -467,7 +468,7 @@
       </label>
 
       <label class:off={!app.vehicle}>
-        <span>Build no.</span>
+        <span>{ui("identify.buildNumber")}</span>
         <input
           data-testid="build-number"
           class="build"
@@ -485,7 +486,7 @@
       {#if plates.length > 1}
         <Combo
           testid="plates"
-          label="Plate"
+          label={ui("identify.plate")}
           items={plates}
           text={(x) => (app.group ? plateLabel(app.group, x.p.plate) : x.p.plate)}
           key={(x) => x.p.raw}
@@ -500,14 +501,14 @@
 
     <!-- The tabs sit below the identification bar because identification is
          shared: both views are about the same vehicle. -->
-    <div class="tabs" role="tablist" aria-label="View">
+    <div class="tabs" role="tablist" aria-label={ui("view.label")}>
       <button
         type="button"
         role="tab"
         data-testid="tab-parts"
         aria-selected={app.view === "parts"}
         class:on={app.view === "parts"}
-        onclick={() => app.setView("parts")}>Parts</button
+        onclick={() => app.setView("parts")}>{ui("view.parts")}</button
       >
       <button
         type="button"
@@ -518,7 +519,7 @@
         disabled={!app.model}
         onclick={() => app.setView("docs")}
       >
-        Repair documentation
+        {ui("view.docs")}
         {#if app.docs}<span class="badge">{app.docs.total}</span>{/if}
       </button>
     </div>
@@ -526,7 +527,7 @@
     {#if app.view === "docs"}
       <div class="content">
         {#if !app.model}
-          <p class="hint">Choose a model — the manuals are indexed by vehicle family.</p>
+          <p class="hint">{ui("view.docsNeedModel")}</p>
         {:else}
           <Documents
             elements={app.visibleDocElements}
@@ -565,21 +566,24 @@
       {#if !app.plate}
         <p class="hint">
           {#if !app.brand && app.brands.length > 1}
-            Choose a brand to begin.
+            {ui("hint.brand")}
           {:else if !app.model}
-            Choose a model.
+            {ui("hint.model")}
           {:else if !app.vehicle}
-            Choose a vehicle. Applicability is evaluated against it, so nothing is filtered until
-            one is picked.
+            {ui("hint.vehicle")}
           {:else if !app.assembly}
-            Choose an assembly from the list — engine, bodywork, interior and so on.
+            {ui("hint.assembly")}
           {:else if plates.length === 0}
-            <strong>Nothing on this assembly fits this vehicle.</strong> Its plates apply to other
-            variants of the model, which is normal: for this vehicle
-            {app.availability.size - app.hiddenAssemblyCount} of {app.availability.size} assemblies
-            have parts. Pick another, or untick <em>hide</em> to see the empty ones.
+            <!-- Two keys rather than one with markup in it: a translator should
+                 not have to carry `<strong>` through, and a catalogue string
+                 that reaches the DOM as markup would need `{@html}`. -->
+            <strong>{ui("hint.emptyAssemblyLead")}</strong>
+            {ui("hint.emptyAssemblyBody", {
+              available: app.availability.size - app.hiddenAssemblyCount,
+              total: app.availability.size,
+            })}
           {:else}
-            Choose a plate. Each one is a drawing within this assembly.
+            {ui("hint.plate")}
           {/if}
         </p>
       {:else}
@@ -588,30 +592,30 @@
           <span class="meta" data-testid="plate-key">
             {app.group ? plateLabel(app.group, app.plate.plate) : app.plate.plate}
             &middot; {app.plate.key}
-            &middot; drawing {app.plate.drawing ?? "—"}
-            &middot; {app.plate.reperes.length} callouts
+            &middot; {ui("plate.drawing", { id: app.plate.drawing ?? ui("plate.noDrawing") })}
+            &middot; {ui("plate.callouts", { count: app.plate.reperes.length })}
             <!-- The honest measure of how well the vehicle is identified: it
                  falls as the factory, build number and criteria are supplied.
                  Here rather than in a status bar because it is about this
                  plate. -->
-            &middot; {app.decidedCount} decided
+            &middot; {ui("plate.decided", { count: app.decidedCount })}
             &middot; <span class:warn-text={app.undecidedCount > 0}
-              >{app.undecidedCount} undecided</span
+              >{ui("plate.undecided", { count: app.undecidedCount })}</span
             >
           </span>
         </div>
 
         {#if app.plate.questions.length > 0}
           <div class="questions" data-testid="questions">
-            <strong>{app.undecidedCount} parts undecided.</strong>
+            <strong>{ui("plate.undecidedParts", { count: app.undecidedCount })}</strong>
             {#if app.plate.dateQuestions.length > 0}
               {#if !app.buildNumber}
-                Enter a build number above to settle the date-based ones.
+                {ui("plate.needBuildNumber")}
               {:else if !app.factory}
                 <!-- A build number alone cannot be compared: `resolveDate`
                      needs `factory + number` to look up the Dates table. -->
-                Pick a <strong>factory</strong> as well — a build number cannot be compared without
-                one.
+                {ui("plate.needFactoryLead")} <strong>{ui("plate.needFactoryWord")}</strong>
+                {ui("plate.needFactoryTail")}
               {/if}
             {/if}
             <div class="asks">
@@ -633,7 +637,7 @@
                     </select>
                   </label>
                 {:else}
-                  <span class="qtag" title="No values for this criterion in this PR group"
+                  <span class="qtag" title={ui("identify.noCriterionValues")}
                     >{q.label}</span
                   >
                 {/if}

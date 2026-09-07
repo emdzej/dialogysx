@@ -16,6 +16,14 @@
   import Link from "@lucide/svelte/icons/link";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import X from "@lucide/svelte/icons/x";
+  import {
+    UI_LOCALES,
+    setUiPreference,
+    ui,
+    uiLocale,
+    uiPreference,
+    type UiPreference,
+  } from "./ui.svelte.js";
   import type { SavedSource } from "./settings";
 
   interface Props {
@@ -70,7 +78,20 @@
    * already true is noise.
    */
   let tab = $state<"data" | "language">("data");
-  const showLanguage = $derived(languages.length > 1 && onLanguage !== undefined);
+  /**
+   * Whether the *tree* offers a catalogue-language choice.
+   *
+   * The tab itself is always shown, because the interface language is not a
+   * property of the tree — this only decides whether the catalogue selector
+   * appears beside it. A tree imported with `-l en` has exactly one catalogue
+   * language and a control that can only confirm that is noise.
+   */
+  const showCatalogueLanguage = $derived(languages.length > 1 && onLanguage !== undefined);
+
+  /** What "match my browser" currently resolves to, named in its own language. */
+  const systemLabel = $derived(
+    UI_LOCALES.find((l) => l.tag === uiLocale())?.label ?? uiLocale(),
+  );
 
   // Seeded from what is remembered, so reopening the dialog shows the tree in
   // use rather than the default. Capturing the initial value is the intent
@@ -122,16 +143,14 @@
         onclick={() => (tab = "data")}
         data-testid="tab-data">Data</button
       >
-      {#if showLanguage}
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "language"}
-          class:on={tab === "language"}
-          onclick={() => (tab = "language")}
-          data-testid="tab-language">Language</button
-        >
-      {/if}
+      <button
+        type="button"
+        role="tab"
+        aria-selected={tab === "language"}
+        class:on={tab === "language"}
+        onclick={() => (tab = "language")}
+        data-testid="tab-language">{ui("language.section")}</button
+      >
     </div>
 
     <div class="body" class:hidden={tab !== "data"}>
@@ -237,28 +256,48 @@
       </p>
     </div>
 
-    {#if showLanguage && tab === "language"}
+    {#if tab === "language"}
       <div class="body">
         <section>
-          <h2>Catalogue language</h2>
-          <p class="hint">
-            Criterion names, assembly names and the menu come from
-            <code>langue/&lt;code&gt;/</code>. Changing this reopens the tree, which takes a
-            moment — the vocabulary and the menu are read again.
-          </p>
+          <h2>{ui("language.interface")}</h2>
+          <p class="hint">{ui("language.note")}</p>
           <div class="row">
             <select
-              aria-label="Catalogue language"
-              value={language}
-              onchange={(e) => onLanguage?.(e.currentTarget.value)}
-              data-testid="language-select"
+              aria-label={ui("language.interface")}
+              value={uiPreference()}
+              onchange={(e) => setUiPreference(e.currentTarget.value as UiPreference)}
+              data-testid="ui-language-select"
             >
-              {#each languages as l (l)}
-                <option value={l}>{l}</option>
+              <!-- Naming what the browser resolves to, because "match my
+                   browser" otherwise gives no way to tell what you will get
+                   without selecting it and watching the page change. -->
+              <option value="system">{ui("language.systemResolved", { label: systemLabel })}</option
+              >
+              {#each UI_LOCALES as l (l.tag)}
+                <option value={l.tag}>{l.label}</option>
               {/each}
             </select>
           </div>
         </section>
+
+        {#if showCatalogueLanguage}
+          <section>
+            <h2>{ui("language.catalogue")}</h2>
+            <p class="hint">{ui("language.catalogueNote")}</p>
+            <div class="row">
+              <select
+                aria-label={ui("language.catalogue")}
+                value={language}
+                onchange={(e) => onLanguage?.(e.currentTarget.value)}
+                data-testid="language-select"
+              >
+                {#each languages as l (l)}
+                  <option value={l}>{l}</option>
+                {/each}
+              </select>
+            </div>
+          </section>
+        {/if}
 
         <section>
           <h2>Part names</h2>

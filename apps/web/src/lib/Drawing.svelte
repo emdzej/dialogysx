@@ -13,6 +13,7 @@
    * hotspot in the wrong place on those.
    */
   import { DRAWING_SIZE, REPERE_HOTSPOT_SIZE } from "@dialogysx/catalogue";
+  import { ui } from "./ui.svelte.js";
 
   interface Props {
     src: string | undefined;
@@ -62,17 +63,17 @@
 
 <div class="frame">
   {#if src === undefined}
-    <p class="empty">No drawing for this plate.</p>
+    <p class="empty">{ui("drawing.none")}</p>
   {:else if failed}
     <p class="empty">
-      Drawing not found in this tree.<br />
+      {ui("drawing.notFound")}<br />
       <code>{src}</code>
     </p>
   {:else}
     <div class="stage">
       <img
         {src}
-        alt="Parts drawing"
+        alt={ui("drawing.alt")}
         onload={onLoad}
         onerror={() => (failed = true)}
         draggable="false"
@@ -83,8 +84,8 @@
             class="hotspot"
             class:active={active === h.repere}
             style="left:{h.left}%; top:{h.top}%; width:{h.width}%; height:{h.height}%"
-            title="Callout {h.repere}"
-            aria-label="Callout {h.repere}"
+            title={ui("drawing.callout", { id: h.repere })}
+            aria-label={ui("drawing.callout", { id: h.repere })}
             onmouseenter={() => onHover(h.repere)}
             onmouseleave={() => onHover(undefined)}
             onfocus={() => onHover(h.repere)}
@@ -94,7 +95,7 @@
       {/if}
     </div>
     {#if loaded && placed.length === 0}
-      <p class="note">No callout positions on record for this drawing.</p>
+      <p class="note">{ui("drawing.noPositions")}</p>
     {/if}
   {/if}
 </div>

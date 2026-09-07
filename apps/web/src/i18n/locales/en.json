@@ -1,0 +1,81 @@
+{
+  "chrome": {
+    "about": "About dialogysx",
+    "releaseNotes": "Release notes",
+    "github": "Source on GitHub",
+    "import": "Import from discs",
+    "settings": "Settings",
+    "close": "Close"
+  },
+  "splash": {
+    "chooseTree": "Choose a data tree",
+    "noTree": "No data tree open.",
+    "chooseOne": "Choose one",
+    "folderForgotten": "That folder is no longer remembered. Choose it again.",
+    "folderDenied": "Access to that folder was denied."
+  },
+  "identify": {
+    "brand": "Brand",
+    "model": "Model",
+    "vehicle": "Vehicle",
+    "plate": "Plate",
+    "factory": "Factory",
+    "buildNumber": "Build no.",
+    "any": "any",
+    "noCriterionValues": "No values for this criterion in this PR group"
+  },
+  "view": {
+    "label": "View",
+    "parts": "Parts",
+    "docs": "Repair documentation",
+    "docsNeedModel": "Choose a model — the manuals are indexed by vehicle family."
+  },
+  "hint": {
+    "brand": "Choose a brand to begin.",
+    "model": "Choose a model.",
+    "vehicle": "Choose a vehicle. Applicability is evaluated against it, so nothing is filtered until one is picked.",
+    "assembly": "Choose an assembly from the list — engine, bodywork, interior and so on.",
+    "plate": "Choose a plate. Each one is a drawing within this assembly.",
+    "emptyAssemblyLead": "Nothing on this assembly fits this vehicle.",
+    "emptyAssemblyBody": "Its plates apply to other variants of the model, which is normal: for this vehicle {{available}} of {{total}} assemblies have parts. Pick another, or untick hide to see the empty ones."
+  },
+  "plate": {
+    "drawing": "drawing {{id}}",
+    "noDrawing": "—",
+    "callouts_one": "{{count}} callout",
+    "callouts_other": "{{count}} callouts",
+    "decided": "{{count}} decided",
+    "undecided": "{{count}} undecided",
+    "undecidedParts_one": "{{count}} part undecided.",
+    "undecidedParts_other": "{{count}} parts undecided.",
+    "needBuildNumber": "Enter a build number above to settle the date-based ones.",
+    "needFactoryLead": "Pick a",
+    "needFactoryWord": "factory",
+    "needFactoryTail": "as well — a build number cannot be compared without one."
+  },
+  "assemblies": {
+    "label": "Assembly",
+    "search": "Search assemblies",
+    "searchPlaceholder": "engine, 1010A, brakes…",
+    "hideEmpty": "hide {{count}} with no parts",
+    "needVehicle": "Choose a vehicle first.",
+    "noMatch": "Nothing matches that.",
+    "noneForVehicle": "No assemblies for this vehicle."
+  },
+  "drawing": {
+    "alt": "Parts drawing",
+    "callout": "Callout {{id}}",
+    "notFound": "Drawing not found in this tree.",
+    "noPositions": "No callout positions on record for this drawing.",
+    "none": "No drawing for this plate."
+  },
+  "language": {
+    "section": "Language",
+    "interface": "Interface language",
+    "system": "Match my browser",
+    "systemResolved": "Match my browser ({{label}})",
+    "note": "The language of the application's own text. The catalogue's own words — criterion names, assembly names, part descriptions — come from the tree and are chosen below.",
+    "catalogue": "Catalogue language",
+    "catalogueNote": "Criterion names, assembly names and the menu come from langue/<code>/. Changing this reopens the tree, which takes a moment — the vocabulary and the menu are read again."
+  }
+}

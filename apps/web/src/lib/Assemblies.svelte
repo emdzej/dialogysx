@@ -16,6 +16,7 @@
    * mechanic will try all three.
    */
   import Search from "@lucide/svelte/icons/search";
+  import { ui } from "./ui.svelte.js";
   import type { AssemblyEntry } from "@dialogysx/catalogue";
 
   interface Props {
@@ -86,7 +87,7 @@
 
 <div class="panel">
   <div class="head">
-    <span class="label">Assembly</span>
+    <span class="label">{ui("assemblies.label")}</span>
     <span class="count">{filtered.length}</span>
   </div>
 
@@ -96,8 +97,8 @@
       type="search"
       bind:value={query}
       {disabled}
-      placeholder="engine, 1010A, brakes…"
-      aria-label="Search assemblies"
+      placeholder={ui("assemblies.searchPlaceholder")}
+      aria-label={ui("assemblies.search")}
       data-testid="assembly-search"
     />
   </div>
@@ -111,16 +112,16 @@
         checked={onlyAvailable}
         onchange={(e) => onToggleAvailable(e.currentTarget.checked)}
       />
-      hide {hiddenCount} with no parts
+      {ui("assemblies.hideEmpty", { count: hiddenCount })}
     </label>
   {/if}
 
   <div class="list" data-testid="assembly-list">
     {#if disabled}
-      <p class="none">Choose a vehicle first.</p>
+      <p class="none">{ui("assemblies.needVehicle")}</p>
     {:else if filtered.length === 0}
       <p class="none">
-        {query.trim().length > 0 ? "Nothing matches that." : "No assemblies for this vehicle."}
+        {query.trim().length > 0 ? ui("assemblies.noMatch") : ui("assemblies.noneForVehicle")}
       </p>
     {:else}
       {#each groups as g (g.key)}

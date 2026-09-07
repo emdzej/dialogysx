@@ -1,0 +1,85 @@
+{
+  "chrome": {
+    "about": "O programie dialogysx",
+    "releaseNotes": "Informacje o wydaniu",
+    "github": "Źródła na GitHubie",
+    "import": "Import z płyt",
+    "settings": "Ustawienia",
+    "close": "Zamknij"
+  },
+  "splash": {
+    "chooseTree": "Wybierz katalog z danymi",
+    "noTree": "Nie otwarto żadnych danych.",
+    "chooseOne": "Wybierz",
+    "folderForgotten": "Ten folder nie jest już zapamiętany. Wskaż go ponownie.",
+    "folderDenied": "Odmówiono dostępu do tego folderu."
+  },
+  "identify": {
+    "brand": "Marka",
+    "model": "Model",
+    "vehicle": "Pojazd",
+    "plate": "Plansza",
+    "factory": "Fabryka",
+    "buildNumber": "Nr fabr.",
+    "any": "dowolna",
+    "noCriterionValues": "Brak wartości tego kryterium w tej grupie PR"
+  },
+  "view": {
+    "label": "Widok",
+    "parts": "Części",
+    "docs": "Dokumentacja naprawcza",
+    "docsNeedModel": "Wybierz model — instrukcje są indeksowane według rodziny pojazdu."
+  },
+  "hint": {
+    "brand": "Zacznij od wybrania marki.",
+    "model": "Wybierz model.",
+    "vehicle": "Wybierz pojazd. Warunki stosowalności są oceniane względem niego, więc nic nie jest filtrowane, dopóki go nie wskażesz.",
+    "assembly": "Wybierz zespół z listy — silnik, karoseria, wnętrze i tak dalej.",
+    "plate": "Wybierz planszę. Każda z nich to jeden rysunek w tym zespole.",
+    "emptyAssemblyLead": "Nic z tego zespołu nie pasuje do tego pojazdu.",
+    "emptyAssemblyBody": "Jego plansze dotyczą innych wersji tego modelu, co jest normalne: dla tego pojazdu części mają {{available}} z {{total}} zespołów. Wybierz inny albo odznacz „ukryj”, aby zobaczyć puste."
+  },
+  "plate": {
+    "drawing": "rysunek {{id}}",
+    "noDrawing": "—",
+    "callouts_one": "{{count}} odnośnik",
+    "callouts_few": "{{count}} odnośniki",
+    "callouts_many": "{{count}} odnośników",
+    "callouts_other": "{{count}} odnośnika",
+    "decided": "{{count}} rozstrzygnięto",
+    "undecided": "{{count}} nierozstrzygniętych",
+    "undecidedParts_one": "{{count}} część nierozstrzygnięta.",
+    "undecidedParts_few": "{{count}} części nierozstrzygnięte.",
+    "undecidedParts_many": "{{count}} części nierozstrzygniętych.",
+    "undecidedParts_other": "{{count}} części nierozstrzygniętej.",
+    "needBuildNumber": "Podaj numer fabryczny powyżej, aby rozstrzygnąć te zależne od daty.",
+    "needFactoryLead": "Wskaż też",
+    "needFactoryWord": "fabrykę",
+    "needFactoryTail": "— numeru fabrycznego nie da się porównać bez niej."
+  },
+  "assemblies": {
+    "label": "Zespół",
+    "search": "Szukaj zespołów",
+    "searchPlaceholder": "silnik, 1010A, hamulce…",
+    "hideEmpty": "ukryj {{count}} bez części",
+    "needVehicle": "Najpierw wybierz pojazd.",
+    "noMatch": "Nic nie pasuje.",
+    "noneForVehicle": "Brak zespołów dla tego pojazdu."
+  },
+  "drawing": {
+    "alt": "Rysunek części",
+    "callout": "Odnośnik {{id}}",
+    "notFound": "Nie znaleziono rysunku w tych danych.",
+    "noPositions": "Brak zapisanych pozycji odnośników dla tego rysunku.",
+    "none": "Brak rysunku dla tej planszy."
+  },
+  "language": {
+    "section": "Język",
+    "interface": "Język interfejsu",
+    "system": "Zgodnie z przeglądarką",
+    "systemResolved": "Zgodnie z przeglądarką ({{label}})",
+    "note": "Język tekstów samego programu. Słowa z katalogu — nazwy kryteriów, nazwy zespołów, opisy części — pochodzą z danych i wybiera się je poniżej.",
+    "catalogue": "Język katalogu",
+    "catalogueNote": "Nazwy kryteriów, nazwy zespołów i menu pochodzą z langue/<kod>/. Zmiana tego ustawienia otwiera dane ponownie, co chwilę zajmuje — słownik i menu są czytane na nowo."
+  }
+}

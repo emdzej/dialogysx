@@ -67,14 +67,33 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   });
 
   /**
+   * A page pinned to English.
+   *
+   * Every assertion below finds its element by English text, so inheriting the
+   * locale would make the suite pass or fail depending on the machine running
+   * it: on a Polish desktop the interface comes up in Polish and
+   * `getByRole("button", { name: "Open" })` finds nothing. `locale` sets what
+   * the page reports as `navigator.languages`, which is what the interface
+   * negotiates against.
+   *
+   * Pinning the *browser* rather than seeding a stored preference is
+   * deliberate: it leaves `localStorage` empty, so these tests still exercise
+   * the first-run path. Switching languages is covered by `language.e2e.test.ts`.
+   */
+  async function newEnglishPage(): Promise<Page> {
+    const context = await browser!.newContext({ locale: "en-GB" });
+    return await context.newPage();
+  }
+
+  /**
    * Open the tree the way a first-time visitor does.
    *
-   * `browser.newPage()` gets its own context, so `localStorage` is empty and
-   * the settings panel opens by itself — which is the flow worth exercising.
-   * A returning visitor is covered separately, by reloading.
+   * A fresh context, so `localStorage` is empty and the settings panel opens by
+   * itself — which is the flow worth exercising. A returning visitor is covered
+   * separately, by reloading.
    */
   async function openCatalogue(): Promise<Page> {
-    const page = await browser!.newPage();
+    const page = await newEnglishPage();
     await page.goto(`${URL!}${QUERY}`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("settings").waitFor({ timeout: 30_000 });
     await page.getByTestId("settings-url").fill("/data");
@@ -448,7 +467,7 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
   });
 
   it("reports a tree that is not there instead of failing silently", async () => {
-    const page = await browser!.newPage();
+    const page = await newEnglishPage();
     await page.goto(`${URL!}${QUERY}`, { waitUntil: "domcontentloaded" });
     await page.getByTestId("settings").waitFor({ timeout: 30_000 });
     await page.getByTestId("settings-url").fill("/nope");
