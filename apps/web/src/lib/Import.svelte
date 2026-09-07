@@ -81,7 +81,20 @@
       };
       w.addEventListener("message", onMessage);
       w.addEventListener("error", (e) => reject(new Error(e.message)), { once: true });
-      w.postMessage(req);
+      /*
+       * Snapshot the state before posting it.
+       *
+       * `$state` deep-proxies a plain object, and a Proxy cannot be structured
+       * cloned — `postMessage` fails with "#<Object> could not be cloned",
+       * which names neither the field nor the reason. `carried` is the only
+       * proxied thing in a request: `source` and `target` hold
+       * `FileSystemDirectoryHandle` instances, and Svelte leaves class
+       * instances unproxied, so those cross as themselves.
+       *
+       * Done here rather than at each call site because there are four of
+       * them and a fifth would silently reintroduce it.
+       */
+      w.postMessage({ ...req, state: $state.snapshot(req.state) });
     });
   }
 
