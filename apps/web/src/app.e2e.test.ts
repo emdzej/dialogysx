@@ -466,6 +466,122 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
     await page.close();
   });
 
+  /**
+   * The diagram tabs.
+   *
+   * An assembly holds several views of the same thing — `Organes` lists up to
+   * 31 plate references under one assembly, each with its own drawing — and
+   * this was a combobox in the identification bar, which was wrong twice over:
+   * choosing which diagram to look at is not identifying the vehicle, and a
+   * plate has no name to put in a list. So: numbered tabs, in the diagram
+   * space, exactly as the original pages through them.
+   *
+   * None of this was covered before. The combobox appeared only when an
+   * assembly had more than one plate, and the assembly this suite drives
+   * ("Complete engine") resolves to exactly one — so the control the user
+   * reported never appeared in a test at all.
+   */
+  describe("the diagram tabs", () => {
+    /** Measured: 12 diagrams for this vehicle, the most of any assembly. */
+    const MANY = "8888A";
+
+    it("shows no tabs when the assembly has a single diagram", async () => {
+      // 59 % of assemblies resolve to one diagram and open it directly. A tab
+      // strip of one is a control that cannot do anything.
+      const page = await openCatalogue();
+      await identify(page);
+      await pickAssembly(page, ASSEMBLY);
+      await page.getByTestId("plate-key").waitFor({ timeout: 60_000 });
+      expect(await page.getByTestId("plate-tab").count()).toBe(0);
+      await page.close();
+    });
+
+    it("shows one numbered tab per diagram, in ascending order", async () => {
+      const page = await openCatalogue();
+      await identify(page);
+      // By code: the panel matches name, domain or code, and a name fragment
+      // can select a different assembly first.
+      await pickAssembly(page, MANY);
+      await page.getByTestId("plate-tab").first().waitFor({ timeout: 60_000 });
+
+      const tabs = page.getByTestId("plate-tab");
+      const n = await tabs.count();
+      expect(n).toBeGreaterThan(1);
+
+      // Numbered 1..n, because there is no name to show.
+      const labels = (await tabs.allTextContents()).map((t) => t.replace(/\D/g, ""));
+      expect(labels).toEqual(Array.from({ length: n }, (_, i) => String(i + 1)));
+
+      // Ascending by plate code. `Organes` stores them descending, and the
+      // trailing digits are a sub-position, so tab 3 must be the third
+      // diagram rather than the third that happened to resolve.
+      const codes = await tabs.evaluateAll((els) =>
+        els.map((e) => (e as HTMLElement).dataset.plate ?? ""),
+      );
+      expect(codes).toEqual([...codes].sort());
+      await page.close();
+    });
+
+    it("names the plate and its drawing in each tab's tooltip", async () => {
+      // The tab itself is a number; the tooltip is the only place the code and
+      // the drawing number appear, which is also where the original puts them.
+      const page = await openCatalogue();
+      await identify(page);
+      await pickAssembly(page, MANY);
+      await page.getByTestId("plate-tab").first().waitFor({ timeout: 60_000 });
+      const title = await page.getByTestId("plate-tab").first().getAttribute("title");
+      expect(title ?? "").toMatch(/drawing \d{8}/);
+      expect(title ?? "").toContain(GROUP);
+      await page.close();
+    });
+
+    it("opens the diagram a tab points at, and follows the selection", async () => {
+      const page = await openCatalogue();
+      await identify(page);
+      await pickAssembly(page, MANY);
+      const tabs = page.getByTestId("plate-tab");
+      await tabs.first().waitFor({ timeout: 60_000 });
+
+      const openTab = async (i: number) => {
+        await tabs.nth(i).click();
+        await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
+        // The plate code is in the metadata line, so it says which diagram is
+        // actually open rather than which tab merely looks active.
+        return {
+          key: (await page.getByTestId("plate-key").textContent())?.replace(/\s+/g, " ").trim(),
+          selected: await tabs.nth(i).getAttribute("aria-selected"),
+        };
+      };
+
+      const third = await openTab(2);
+      expect(third.selected).toBe("true");
+      const first = await openTab(0);
+      expect(first.selected).toBe("true");
+      // Two different diagrams, so this cannot pass by never changing.
+      expect(first.key).not.toBe(third.key);
+      // And the tab just left is no longer selected.
+      expect(await tabs.nth(2).getAttribute("aria-selected")).toBe("false");
+      await page.close();
+    });
+
+    it("offers the tabs before a diagram is chosen", async () => {
+      // The regression that shipped for about ten minutes: the strip was
+      // inside the branch that renders once a plate is open, so an assembly
+      // with several diagrams showed a prompt to choose one and no way to.
+      const page = await openCatalogue();
+      await identify(page);
+      await pickAssembly(page, MANY);
+      await page.getByTestId("plate-tab").first().waitFor({ timeout: 60_000 });
+      // Nothing auto-opens above one diagram, so no tab is selected yet.
+      const selected = await page
+        .getByTestId("plate-tab")
+        .evaluateAll((els) => els.filter((e) => e.getAttribute("aria-selected") === "true").length);
+      expect(selected).toBe(0);
+      expect(await page.getByTestId("plate-tab").count()).toBeGreaterThan(1);
+      await page.close();
+    });
+  });
+
   it("reports a tree that is not there instead of failing silently", async () => {
     const page = await newEnglishPage();
     await page.goto(`${URL!}${QUERY}`, { waitUntil: "domcontentloaded" });

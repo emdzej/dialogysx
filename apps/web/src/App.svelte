@@ -270,15 +270,22 @@
     return [v.pr, c.TYP_, c.NEQT, c.EQPT, c.MOT3, c.MOTI, c.BVI3].join("|");
   }
 
-  const plates = $derived([
-    ...app.assemblyPlates.map((p) => ({ p, undecided: false })),
-    ...app.assemblyUnknown.map((p) => ({ p, undecided: true })),
-  ]);
+  /**
+   * The assembly's diagrams, in the order they are numbered.
+   *
+   * Sorted ascending by plate code, and interleaved rather than listing the
+   * ones that fit before the undecided ones. `Organes` stores them
+   * descending, and the code's trailing digits are a sub-position within the
+   * assembly, so ascending is the sequence a tab number should follow — tab 3
+   * of 7 means the third diagram, not the third that happened to resolve.
+   */
+  const plates = $derived(
+    [
+      ...app.assemblyPlates.map((p) => ({ p, undecided: false })),
+      ...app.assemblyUnknown.map((p) => ({ p, undecided: true })),
+    ].sort((x, y) => x.p.plate.localeCompare(y.p.plate)),
+  );
 
-  function pickPlate(raw: string) {
-    const found = plates.find((x) => x.p.raw === raw);
-    if (found) app.selectPlate(found.p);
-  }
 </script>
 
 {#if aboutOpen}
@@ -481,21 +488,6 @@
       </label>
 
 
-      <!-- Shown only when there is a choice. Two thirds of assemblies resolve
-           to a single plate, which is opened automatically. -->
-      {#if plates.length > 1}
-        <Combo
-          testid="plates"
-          label={ui("identify.plate")}
-          items={plates}
-          text={(x) => (app.group ? plateLabel(app.group, x.p.plate) : x.p.plate)}
-          key={(x) => x.p.raw}
-          hint={(x) => (x.undecided ? "?" : undefined)}
-          muted={(x) => x.undecided}
-          selected={plates.find((x) => x.p.plate === app.plate?.plate)}
-          onPick={(x) => app.selectPlate(x.p)}
-        />
-      {/if}
     </div>
 
 
@@ -563,6 +555,56 @@
         />
 
         <div class="workmain">
+        <!--
+          Tabs, not a dropdown, and here rather than in the identification bar.
+          Which diagram of an assembly you are looking at is not part of
+          identifying the vehicle: the assembly holds several views of the same
+          thing, and the original pages through them under one title
+          (`affichePlancheDUnGroupe` takes an index and a count, and the class
+          driving it is called `TournePages`).
+
+          Numbered, because a plate has no name to put on a tab — only a
+          7-character code and a drawing number, and a row of
+          `1256/M/37/3012` is both unreadable and too wide. The code and the
+          drawing go in the tooltip, which is where the original puts them too.
+
+          Only when there is a choice: 59 % of assemblies yield exactly one
+          diagram and it is opened automatically.
+        -->
+        {#if plates.length > 1}
+          <div class="diagramtabs" role="tablist" aria-label={ui("plate.diagrams")}>
+            {#each plates as x, i (x.p.raw)}
+              {@const label = app.group ? plateLabel(app.group, x.p.plate) : x.p.plate}
+              <button
+                type="button"
+                role="tab"
+                data-testid="plate-tab"
+                data-plate={x.p.plate}
+                aria-selected={x.p.plate === app.plate?.plate}
+                class:on={x.p.plate === app.plate?.plate}
+                class:undecided={x.undecided}
+                title={x.undecided
+                  ? ui("plate.diagramUndecidedTitle", {
+                      label,
+                      drawing: x.p.drawing ?? ui("plate.noDrawing"),
+                    })
+                  : ui("plate.diagramTitle", {
+                      label,
+                      drawing: x.p.drawing ?? ui("plate.noDrawing"),
+                    })}
+                aria-label={ui("plate.diagram", { index: i + 1, total: plates.length })}
+                onclick={() => app.selectPlate(x.p)}
+              >
+                {i + 1}
+                <!-- Undecided plates are listed, not hidden: the original asks
+                     rather than guesses, so one whose conditions this vehicle
+                     cannot answer is still reachable, just marked. -->
+                {#if x.undecided}<span class="qmark" aria-hidden="true">?</span>{/if}
+              </button>
+            {/each}
+          </div>
+        {/if}
+
       {#if !app.plate}
         <p class="hint">
           {#if !app.brand && app.brands.length > 1}
@@ -926,12 +968,69 @@
     color: var(--ink-soft);
     max-width: 32rem;
   }
+  /*
+   * The diagram tabs.
+   *
+   * Scrolls rather than wraps. Twelve is the worst case measured on a real
+   * vehicle (the wiring-harness assembly), and wrapping that onto a second row
+   * pushes the drawing down by a line for one assembly in 134 — a layout that
+   * shifts depending on which assembly you picked is worse than one that
+   * scrolls in the rare case.
+   */
+  .diagramtabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 0.6rem;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .diagramtabs button {
+    font: inherit;
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    /* A floor rather than a fixed width, so a two-digit tab does not crop. */
+    min-width: 2rem;
+    padding: 0.25rem 0.45rem;
+    border: 1px solid var(--rule);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    background: var(--card);
+    color: var(--dim);
+    cursor: pointer;
+    flex: 0 0 auto;
+  }
+  .diagramtabs button:hover {
+    color: var(--ink);
+  }
+  .diagramtabs button.on {
+    background: var(--bg);
+    color: var(--ink);
+    border-color: var(--blue);
+    border-bottom: none;
+    font-weight: 600;
+  }
+  /* Marked, not hidden: it is reachable, it just may not apply. */
+  .diagramtabs button.undecided {
+    font-style: italic;
+  }
+  .diagramtabs .qmark {
+    color: var(--red);
+    font-weight: 600;
+  }
+  .diagramtabs button:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: -2px;
+  }
   .platehead {
     display: flex;
     align-items: baseline;
     gap: 0.75rem;
     flex-wrap: wrap;
     margin-bottom: 0.75rem;
+    /* Sits directly under the tab strip, so it reads as the selected tab's
+       panel rather than as a separate heading. */
+    border-top: 1px solid var(--rule);
+    padding-top: 0.6rem;
   }
   .platehead h2 {
     margin: 0;

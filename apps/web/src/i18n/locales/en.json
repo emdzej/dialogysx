@@ -35,7 +35,7 @@
     "model": "Choose a model.",
     "vehicle": "Choose a vehicle. Applicability is evaluated against it, so nothing is filtered until one is picked.",
     "assembly": "Choose an assembly from the list — engine, bodywork, interior and so on.",
-    "plate": "Choose a plate. Each one is a drawing within this assembly.",
+    "plate": "Choose a diagram above — this assembly has more than one.",
     "emptyAssemblyLead": "Nothing on this assembly fits this vehicle.",
     "emptyAssemblyBody": "Its plates apply to other variants of the model, which is normal: for this vehicle {{available}} of {{total}} assemblies have parts. Pick another, or untick hide to see the empty ones."
   },
@@ -52,7 +52,11 @@
     "needFactoryWord": "factory",
     "needFactoryTail": "as well — a build number cannot be compared without one.",
     "undecided_one": "{{count}} undecided",
-    "undecided_other": "{{count}} undecided"
+    "undecided_other": "{{count}} undecided",
+    "diagrams": "Diagrams in this assembly",
+    "diagram": "Diagram {{index}} of {{total}}",
+    "diagramTitle": "{{label}} · drawing {{drawing}}",
+    "diagramUndecidedTitle": "{{label}} · drawing {{drawing}} — applies only under conditions this vehicle does not answer"
   },
   "assemblies": {
     "label": "Assembly",

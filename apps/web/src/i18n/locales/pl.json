@@ -35,7 +35,7 @@
     "model": "Wybierz model.",
     "vehicle": "Wybierz pojazd. Warunki stosowalności są oceniane względem niego, więc nic nie jest filtrowane, dopóki go nie wskażesz.",
     "assembly": "Wybierz zespół z listy — silnik, karoseria, wnętrze i tak dalej.",
-    "plate": "Wybierz planszę. Każda z nich to jeden rysunek w tym zespole.",
+    "plate": "Wybierz rysunek powyżej — ten zespół ma więcej niż jeden.",
     "emptyAssemblyLead": "Nic z tego zespołu nie pasuje do tego pojazdu.",
     "emptyAssemblyBody": "Jego plansze dotyczą innych wersji tego modelu, co jest normalne: dla tego pojazdu części mają {{available}} z {{total}} zespołów. Wybierz inny albo odznacz „ukryj”, aby zobaczyć puste."
   },
@@ -58,7 +58,11 @@
     "undecided_one": "{{count}} nierozstrzygnięta",
     "undecided_few": "{{count}} nierozstrzygnięte",
     "undecided_many": "{{count}} nierozstrzygniętych",
-    "undecided_other": "{{count}} nierozstrzygniętej"
+    "undecided_other": "{{count}} nierozstrzygniętej",
+    "diagrams": "Rysunki w tym zespole",
+    "diagram": "Rysunek {{index}} z {{total}}",
+    "diagramTitle": "{{label}} · rysunek {{drawing}}",
+    "diagramUndecidedTitle": "{{label}} · rysunek {{drawing}} — ma zastosowanie tylko przy warunkach, na które ten pojazd nie odpowiada"
   },
   "assemblies": {
     "label": "Zespół",
