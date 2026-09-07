@@ -314,6 +314,16 @@ export class CatalogueSession {
     }
   }
 
+  /**
+   * The loaded tariff, for searching descriptions.
+   *
+   * Exposed because it is the only in-memory index of part names — one text
+   * file read at open — and a name search is a scan of it rather than any I/O.
+   */
+  get partNamesIndex(): PartNames | undefined {
+    return this.partNames;
+  }
+
   /** Model-to-family map for the documentation indexes, when present. */
   get familyModels(): FamilyModels | undefined {
     return this.families;

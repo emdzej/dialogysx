@@ -226,6 +226,15 @@ export class Menu {
  * key), which is what the original uses to search parts by name; this reads the
  * plain text because the direction needed here is reference to name.
  */
+/** Lower-cased and stripped of accents, for comparing what a user typed. */
+function fold(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
 export class PartNames {
   private constructor(private readonly byRef: Map<PartRef, string>) {}
 
@@ -251,6 +260,29 @@ export class PartNames {
 
   refs(): IterableIterator<PartRef> {
     return this.byRef.keys();
+  }
+
+  /**
+   * References whose description contains `text`, case-insensitively.
+   *
+   * The whole tariff is already in memory — it is one text file read at open —
+   * so this is a scan of a Map rather than any I/O. Accent-insensitive too,
+   * because the descriptions carry them and a keyboard often does not.
+   *
+   * `limit` is a guard rather than a preference: "a" matches most of 300,000
+   * references, and every hit costs a plate scan downstream.
+   */
+  searchByName(text: string, limit = 200): PartRef[] {
+    const needle = fold(text);
+    if (needle.length === 0) return [];
+    const out: PartRef[] = [];
+    for (const [ref, name] of this.byRef) {
+      if (fold(name).includes(needle)) {
+        out.push(ref);
+        if (out.length >= limit) break;
+      }
+    }
+    return out;
   }
 }
 
