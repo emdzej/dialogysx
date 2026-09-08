@@ -4,6 +4,14 @@ Reference for the on-disc formats of Dialogys 7.5.6 (Renault/Dacia after-sales:
 parts catalogue + repair documentation), reverse-engineered from the shipped
 Java application and validated against the discs.
 
+This document covers the **on-disc formats** only. Its two companions cover
+what the formats do not:
+
+- [`resolution.md`](resolution.md) — how these formats become "this part fits
+  this car": the condition logic, the date subsystem, the resolution pipeline.
+- [`tree.md`](tree.md) — the tree an importer builds from the discs, and its
+  two manifests.
+
 Everything here was derived from the decompiled application and then **checked
 against real files** — every claim about a record layout has been round-tripped
 by `re/tools/dialogys_fmt.py` over the full index of each dataset (see
@@ -154,6 +162,12 @@ indexes and stores a serialised hashtable rather than a sorted key array.
 
 `keyLength` comes from the call site in the decompiled source; the record count
 is arithmetic over the shipped file.
+
+**Index-record counts below are the 7.5.6 set.** They differ on other releases
+and that is not a fault: the English 4.55 set has 40,910 plates, 14,469
+assemblies, 322,265 part references, 37,626 callout records and 7,008 date
+records. Use the counts to sanity-check a reader against _your_ discs, not as a
+constant.
 
 | Dataset              | Data file               | Index stem                 | Key | Depth | Index records | Key source              |
 | -------------------- | ----------------------- | -------------------------- | --- | ----- | ------------- | ----------------------- |
@@ -312,7 +326,7 @@ these nine plates**:
 1242N156322  1270N156369  1274N156369  1703N199300
 ```
 
-#### 3.1.1 Date and build-number comparison — not implemented
+#### 3.1.1 Date and build-number comparison
 
 The ordered operators are used by exactly **eight** variables, all of them views
 onto a build date or a build number
@@ -338,8 +352,13 @@ Resolving them is a subsystem of its own, `VarDate.resolveDate`, with three
 `getUsiWithoutNFab`, `resolveDatesSpeciales`, `resolveDateEvt`,
 `resolveDateApprox`, plus `getBlocDate(vue).getNFabFromEvt(...)` which reads the
 **`Dates` dataset** (§3). It needs the vehicle's build number and factory, not
-just its criteria. Until it exists, those 28.7 % of candidates evaluate to
-unknown — which the interface should present as a question, not as an exclusion.
+just its criteria — which is why the interface asks for both, and why either
+one alone decides nothing.
+
+**This is implemented.** See [`resolution.md` §4](resolution.md) for the three
+views, the successor-event rewrite and what is still uncertain. Where a build
+number is _not_ supplied those 28.7 % of candidates still evaluate to unknown,
+which the interface presents as a question rather than as an exclusion.
 
 ### 3.2 `Organes.dat` — an assembly
 
@@ -787,16 +806,17 @@ application is unobfuscated, so read the parser instead of the bytes.
 
 Honest list of what remains.
 
-- **Date and build-number comparison** (§3.1.1). The ordered operators are
-  parsed but not evaluated, which leaves **28.7 % of part candidates** resolving
-  to unknown. This is now the critical path for parts filtering, and it needs
-  `VarDate.resolveDate`, the `UtilDate` helpers, and the `Dates` dataset.
-- **`Dates` semantics**: the record is a key plus a list of `yymmdd`, but what
-  the dates _mean_ is unverified — and §3.1.1 depends on it.
-- **`Organes.dat` conditions** are almost certainly the same grammar
-  (`CompileCond` treats plates and assemblies identically, and `newCondOrgVign`
-  reuses `newTCondBloc`), but that has not been swept and asserted the way §3.1
-  was. Do not assume it until it is.
+- **`Dates` semantics.** The ordered operators are now evaluated
+  (`resolution.md` §4), which closes the 28.7 % of candidates this list used to
+  name as the critical path. What remains is narrower: the record is a key plus
+  a list of `yymmdd`, and what those dates _mean_ — which event, in whose
+  calendar — is understood by shape rather than specified.
+- **`Organes.dat` conditions** are the same grammar — `CompileCond` treats
+  plates and assemblies identically, and `newCondOrgVign` reuses
+  `newTCondBloc`. This has now been swept the way §3.1 was: `dialogysx organes`
+  parses all **14,469 records with 0 failures**, covering 40,908 plate
+  references of which 28,031 are condition-filtered. What is still unproven is
+  the _evaluation_, not the shape — see the last item.
 - **`prremp`** (part substitutions): payload is `len:int32 || key || binary`; the
   binary tail is unread.
 - **`Refcontexte/refContexte`** (11 MB) — untouched.

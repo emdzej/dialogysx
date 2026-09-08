@@ -86,11 +86,23 @@ Full reasoning in [`docs/plan.md`](docs/plan.md).
 
 ## Documentation
 
+Four documents, split by what you are trying to do. Together they are meant to
+be enough to rebuild this from scratch.
+
+- [`docs/user-guide.md`](docs/user-guide.md) — **using it.** Importing discs,
+  opening a tree, identifying a vehicle, and why a part reads _undecided_ and
+  what settles it.
 - [`docs/data-format.md`](docs/data-format.md) — **the format reference.** The
   storage engine, all 12 datasets with their key lengths and where each one is
   established in the original, the drawings, the repair XML, how it was
   validated, and an honest list of what is still undecoded. No such reference
   exists anywhere else.
+- [`docs/resolution.md`](docs/resolution.md) — **the algorithms.** How those
+  formats become "this part fits this car": three-valued logic, the condition
+  context, the date and build-number subsystem, and what none of it proves.
+  This is the half you cannot recover from a hexdump.
+- [`docs/tree.md`](docs/tree.md) — **the built tree.** What an importer
+  produces, the two manifests, and why nine archives stay packed.
 - [`docs/plan.md`](docs/plan.md) — why the project is shaped this way: sizing,
   architecture, phase order, ranked risks.
 
