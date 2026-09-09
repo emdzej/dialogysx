@@ -34,6 +34,16 @@ Installable, and usable with no network.
 
 ### Fixed
 
+- **A stored copy was invisible, unopenable and unclearable.** Its contents
+  were detected by reading `csfs-manifest.json` back out of storage — and that
+  manifest cannot appear in its own file list, so it was never copied and never
+  found. A finished copy reported nothing stored, with Open and Delete both
+  gated on that count. Storage is walked now, which has no such circularity and
+  reports what is actually there. Two further faults sat behind it: a
+  directory listing does not report file sizes on a handle-based backend, so
+  the total showed as 0 and _resume silently did nothing_ since planning
+  compares sizes; and `formatBytes` had no kilobyte tier, so 7,168 bytes
+  rendered as "0 MB".
 - **The document count flew to the top of the window** when the repair
   documentation tab was opened. `.badge` was already that count, and the parts
   bin's corner marker restyled it as absolutely positioned.
@@ -59,8 +69,12 @@ view, and `Dates` semantics are understood by shape rather than specified.
 New with this release:
 
 - A copy stored in the browser has been exercised against a real tree only at
-  catalogue scale. The 43,273-file repair documentation is a different
+  catalogue scale, and its round trip was verified with seeded files rather
+  than a full copy. The 43,273-file repair documentation is a different
   proposition and its timing is unmeasured.
+- Clearing leaves an empty directory behind, because the refresh that follows
+  re-opens the namespace and opening creates it. The files are gone and the
+  usage figure drops; the husk is harmless.
 - Nothing detects that a stored copy has gone stale against the tree it came
   from. Copying again reconciles it by size, but nobody is told they should.
 - The offline marker reads `navigator.onLine`, which means "this machine has a
