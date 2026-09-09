@@ -35,7 +35,7 @@
     "model": "Wybierz model.",
     "vehicle": "Wybierz pojazd. Warunki stosowalności są oceniane względem niego, więc nic nie jest filtrowane, dopóki go nie wskażesz.",
     "assembly": "Wybierz zespół z listy — silnik, karoseria, wnętrze i tak dalej.",
-    "plate": "Wybierz rysunek powyżej — ten zespół ma więcej niż jeden.",
+    "plate": "Ten zespół wymienia {{count}} rysunek(ów), ale pierwszego nie udało się odczytać z tych danych. Spróbuj innej karty.",
     "emptyAssemblyLead": "Nic z tego zespołu nie pasuje do tego pojazdu.",
     "emptyAssemblyBody": "Jego plansze dotyczą innych wersji tego modelu, co jest normalne: dla tego pojazdu części mają {{available}} z {{total}} zespołów. Wybierz inny albo odznacz „ukryj”, aby zobaczyć puste."
   },

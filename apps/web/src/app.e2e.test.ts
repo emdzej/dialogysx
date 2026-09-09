@@ -542,21 +542,26 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
       const tabs = page.getByTestId("plate-tab");
       await tabs.first().waitFor({ timeout: 60_000 });
 
+      /*
+       * Click a tab and wait for it to actually become the open one.
+       *
+       * Waiting for `plate-key` to *exist* is not enough any more: the first
+       * diagram opens by itself, so the metadata line is already on screen and
+       * `waitFor` returns before the click has been acted on. Polling the tab's
+       * own selected state is the signal that the switch happened.
+       */
       const openTab = async (i: number) => {
         await tabs.nth(i).click();
-        await page.getByTestId("plate-key").waitFor({ timeout: 30_000 });
-        // The plate code is in the metadata line, so it says which diagram is
-        // actually open rather than which tab merely looks active.
+        await expect.poll(() => tabs.nth(i).getAttribute("aria-selected")).toBe("true");
         return {
+          // The plate code in the metadata line says which diagram is open,
+          // rather than which tab merely looks active.
           key: (await page.getByTestId("plate-key").textContent())?.replace(/\s+/g, " ").trim(),
-          selected: await tabs.nth(i).getAttribute("aria-selected"),
         };
       };
 
       const third = await openTab(2);
-      expect(third.selected).toBe("true");
       const first = await openTab(0);
-      expect(first.selected).toBe("true");
       // Two different diagrams, so this cannot pass by never changing.
       expect(first.key).not.toBe(third.key);
       // And the tab just left is no longer selected.
@@ -564,20 +569,28 @@ describe.skipIf(!runnable)("dialogysx in a browser", () => {
       await page.close();
     });
 
-    it("offers the tabs before a diagram is chosen", async () => {
-      // The regression that shipped for about ten minutes: the strip was
-      // inside the branch that renders once a plate is open, so an assembly
-      // with several diagrams showed a prompt to choose one and no way to.
+    it("opens the first diagram without being asked", async () => {
+      // Choosing was a rhetorical question: the tabs are numbered, not named,
+      // so there is nothing to choose between until one is on screen. Arriving
+      // at an assembly should show a drawing and a parts list.
       const page = await openCatalogue();
       await identify(page);
       await pickAssembly(page, MANY);
-      await page.getByTestId("plate-tab").first().waitFor({ timeout: 60_000 });
-      // Nothing auto-opens above one diagram, so no tab is selected yet.
-      const selected = await page
-        .getByTestId("plate-tab")
-        .evaluateAll((els) => els.filter((e) => e.getAttribute("aria-selected") === "true").length);
-      expect(selected).toBe(0);
-      expect(await page.getByTestId("plate-tab").count()).toBeGreaterThan(1);
+      const tabs = page.getByTestId("plate-tab");
+      await tabs.first().waitFor({ timeout: 60_000 });
+      expect(await tabs.count()).toBeGreaterThan(1);
+
+      // Tab 1, and it is the first in tab order rather than whichever
+      // resolved first.
+      await expect.poll(() => tabs.first().getAttribute("aria-selected")).toBe("true");
+      const codes = await tabs.evaluateAll((els) =>
+        els.map((e) => (e as HTMLElement).dataset.plate ?? ""),
+      );
+      const open = (await page.getByTestId("plate-key").textContent()) ?? "";
+      expect(open).toContain(codes[0]!.slice(1, 3));
+
+      // And something is actually shown, which is the point of not asking.
+      expect(await page.locator("table tbody tr").count()).toBeGreaterThan(0);
       await page.close();
     });
   });

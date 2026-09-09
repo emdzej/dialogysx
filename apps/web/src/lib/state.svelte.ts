@@ -6,6 +6,7 @@
  * `@dialogysx/catalogue`.
  */
 import {
+  inTabOrder,
   CatalogueSession,
   type AssemblyEntry,
   type Brand,
@@ -64,8 +65,16 @@ export class AppState {
   onlyAvailable = $state(true);
   assembly = $state<string | undefined>(undefined);
 
-  assemblyPlates = $state<OrganePlate[]>([]);
-  assemblyUnknown = $state<OrganePlate[]>([]);
+  /**
+   * The assembly's diagrams, in tab order, fitting and undecided together.
+   *
+   * One ordered list rather than two unordered ones. The order *is* the tab
+   * numbering, so it has to be decided once: when the strip, the auto-open and
+   * the part search each sorted for themselves, a search result could name
+   * diagram 3 and the strip could open a different one. `inTabOrder` is shared
+   * with `searchDiagrams` for the same reason.
+   */
+  diagrams = $state<{ p: OrganePlate; undecided: boolean }[]>([]);
 
   plate = $state<ResolvedPlate | undefined>(undefined);
 
@@ -258,8 +267,7 @@ export class AppState {
     this.plate = undefined;
     this.vehicles = [];
     this.assemblies = [];
-    this.assemblyPlates = [];
-    this.assemblyUnknown = [];
+    this.diagrams = [];
     this.availability = new Map();
     this.answers = {};
     this.models = await s.modelList(b.id);
@@ -277,7 +285,7 @@ export class AppState {
     this.plate = undefined;
     this.answers = {};
     this.assemblies = [];
-    this.assemblyPlates = [];
+    this.diagrams = [];
     // Deduplicate on the full envelope key. Rows are distinct within one PR
     // group, but a model spans several and the same specification recurs —
     // Clio came to 6,753 entries with visible repeats before this.
@@ -304,7 +312,7 @@ export class AppState {
     this.assembly = undefined;
     this.plate = undefined;
     this.answers = {};
-    this.assemblyPlates = [];
+    this.diagrams = [];
     this.vehicles = await s.vehiclesOf(pr);
     this.assemblies = await s.assemblyList(pr);
   }
@@ -333,8 +341,7 @@ export class AppState {
       this.group = v.pr;
       this.assembly = undefined;
       this.assemblies = await s.assemblyList(v.pr);
-      this.assemblyPlates = [];
-      this.assemblyUnknown = [];
+      this.diagrams = [];
       this.availability =
         (await s?.assemblyAvailability(v.pr, this.effectiveVehicle ?? v)) ?? new Map();
       return;
@@ -404,32 +411,37 @@ export class AppState {
     this.assembly = organe;
     if (!keepOpen) this.plate = undefined;
     if (!v) {
-      this.assemblyPlates = [];
-      this.assemblyUnknown = [];
+      this.diagrams = [];
       return;
     }
     const r = await s.assemblyPlates(this.group, organe, v);
     if (this.stale(gen)) return;
-    this.assemblyPlates = r.plates;
-    this.assemblyUnknown = r.unknown;
+    this.diagrams = inTabOrder([
+      ...r.plates.map((p) => ({ ...p, undecided: false })),
+      ...r.unknown.map((p) => ({ ...p, undecided: true })),
+    ]).map(({ undecided, ...p }) => ({ p, undecided }));
+
     // Narrowing can drop the open plate from the assembly entirely; then it is
     // no longer showing anything true and has to go.
     const open = this.plate;
-    if (open && ![...r.plates, ...r.unknown].some((x) => x.plate === open.plate)) {
+    if (open && !this.diagrams.some((x) => x.p.plate === open.plate)) {
       this.plate = undefined;
     }
 
-    // Auto-open when there is exactly one plate, which is the common case:
-    // measured against a real vehicle, 67 % of assemblies in PR 1132 resolve
-    // to a single plate (38 % in PR 1260). That is why the original appears to
-    // have no plate step — there is usually nothing to choose.
-    //
-    // Counting *undecided* plates too, not just the ones that fit. An assembly
-    // whose only plate is undecided was otherwise unreachable: nothing opened,
-    // and the plate combobox hides itself below two entries.
-    const all = [...r.plates, ...r.unknown];
-    const only = all.length === 1 ? all[0] : undefined;
-    if (only && only.plate !== this.plate?.plate) await this.applyPlate(only, gen);
+    /*
+     * Open the first diagram rather than asking.
+     *
+     * 59 % of assemblies yield exactly one, so the question was usually
+     * rhetorical — and for the rest, "choose a diagram" is a prompt with no
+     * information in it: the tabs are numbered, not named, so there is nothing
+     * to choose *between* until one is on screen. Opening the first shows the
+     * drawing and the parts immediately, and the tabs are right there.
+     *
+     * Undecided diagrams count. An assembly whose only diagram is undecided
+     * was otherwise unreachable — nothing opened, and there was no strip.
+     */
+    const first = this.diagrams[0];
+    if (first && first.p.plate !== this.plate?.plate) await this.applyPlate(first.p, gen);
   }
 
   async selectPlate(p: OrganePlate): Promise<void> {

@@ -271,20 +271,14 @@
   }
 
   /**
-   * The assembly's diagrams, in the order they are numbered.
+   * The assembly's diagrams, already in tab order.
    *
-   * Sorted ascending by plate code, and interleaved rather than listing the
-   * ones that fit before the undecided ones. `Organes` stores them
-   * descending, and the code's trailing digits are a sub-position within the
-   * assembly, so ascending is the sequence a tab number should follow — tab 3
-   * of 7 means the third diagram, not the third that happened to resolve.
+   * Ordered by the state object rather than here, because the same order
+   * decides which diagram opens by default and what a search result's "3 of 7"
+   * refers to. Sorting again here would be a second opinion on the same
+   * question.
    */
-  const plates = $derived(
-    [
-      ...app.assemblyPlates.map((p) => ({ p, undecided: false })),
-      ...app.assemblyUnknown.map((p) => ({ p, undecided: true })),
-    ].sort((x, y) => x.p.plate.localeCompare(y.p.plate)),
-  );
+  const plates = $derived(app.diagrams);
 
 </script>
 
@@ -625,7 +619,10 @@
               total: app.availability.size,
             })}
           {:else}
-            {ui("hint.plate")}
+            <!-- Reachable only on failure now. The first diagram opens by
+                 itself, so arriving here means its record could not be read —
+                 not that a choice is outstanding. -->
+            {ui("hint.plate", { count: plates.length })}
           {/if}
         </p>
       {:else}

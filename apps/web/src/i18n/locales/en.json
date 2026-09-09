@@ -35,7 +35,7 @@
     "model": "Choose a model.",
     "vehicle": "Choose a vehicle. Applicability is evaluated against it, so nothing is filtered until one is picked.",
     "assembly": "Choose an assembly from the list — engine, bodywork, interior and so on.",
-    "plate": "Choose a diagram above — this assembly has more than one.",
+    "plate": "This assembly lists {{count}} diagram(s), but the first could not be read from this tree. Try another tab.",
     "emptyAssemblyLead": "Nothing on this assembly fits this vehicle.",
     "emptyAssemblyBody": "Its plates apply to other variants of the model, which is normal: for this vehicle {{available}} of {{total}} assemblies have parts. Pick another, or untick hide to see the empty ones."
   },
