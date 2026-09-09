@@ -78,7 +78,10 @@
     "callout": "Odnośnik {{id}}",
     "notFound": "Nie znaleziono rysunku w tych danych.",
     "noPositions": "Brak zapisanych pozycji odnośników dla tego rysunku.",
-    "none": "Brak rysunku dla tej planszy."
+    "none": "Brak rysunku dla tej planszy.",
+    "copy": "Kopiuj rysunek",
+    "copied": "Skopiowano",
+    "copyFailed": "Ta przeglądarka nie przyjęła obrazu"
   },
   "language": {
     "section": "Język",
@@ -137,7 +140,10 @@
     "whyLabel": "{{ref}}: pokaż warunki",
     "detailTitle": "Kiedy ta część ma zastosowanie",
     "detailUndecidedLead": "Nierozstrzygnięte: ten pojazd nie odpowiada na wszystkie poniższe kryteria. Pasuje, jeśli zachodzi którykolwiek z nich.",
-    "detailFitsLead": "Pasuje, ponieważ zachodzi jeden z poniższych."
+    "detailFitsLead": "Pasuje, ponieważ zachodzi jeden z poniższych.",
+    "copyRef": "Kopiuj numer {{ref}}",
+    "copyName": "Kopiuj nazwę {{name}}",
+    "copied": "Skopiowano"
   },
   "docs": {
     "unavailable": "Brak dokumentacji naprawczej dla tego modelu. Jego nazwy nie ma w pr/FamilleModeleAll.dat, czyli w pliku przypisującym model do rodziny dokumentów — więc oryginał również jej nie ma.",
@@ -241,5 +247,68 @@
     "entryClashes_few": "— kolidowały {{n}} wpisy archiwum",
     "entryClashes_many": "— kolidowało {{n}} wpisów archiwum",
     "entryClashes_other": "— kolidowało {{n}} wpisu archiwum"
+  },
+  "bin": {
+    "title": "Koszyk części",
+    "open": "Koszyk części",
+    "empty": "Koszyk jest pusty. Dodaj część z listy na planszy.",
+    "add": "Dodaj {{ref}} do koszyka",
+    "inBin": "{{count}} w koszyku",
+    "lines_one": "{{count}} pozycja",
+    "lines_few": "{{count}} pozycje",
+    "lines_many": "{{count}} pozycji",
+    "lines_other": "{{count}} pozycji",
+    "pieces_one": "{{count}} sztuka",
+    "pieces_few": "{{count}} sztuki",
+    "pieces_many": "{{count}} sztuk",
+    "pieces_other": "{{count}} sztuki",
+    "quantity": "Il.",
+    "remove": "Usuń {{ref}} z koszyka",
+    "clear": "Opróżnij koszyk",
+    "print": "Drukuj",
+    "csv": "CSV",
+    "csvFile": "dialogysx-koszyk-czesci.csv",
+    "from": "Z",
+    "confirm": "sprawdź",
+    "confirmTitle": "Wymieniona, ale nierozstrzygnięta dla tego pojazdu — potwierdź przed zamówieniem",
+    "printedFor": "Pojazd",
+    "footer": "Zebrane w dialogysx. Sprawdź każdy numer na planszy przed zamówieniem.",
+    "column": {
+      "ref": "Numer",
+      "name": "Nazwa",
+      "quantity": "Il.",
+      "confirm": "Potwierdzić",
+      "brand": "Marka",
+      "model": "Model",
+      "vehicle": "Pojazd",
+      "group": "Grupa PR",
+      "assembly": "Zespół",
+      "plate": "Plansza",
+      "diagram": "Rysunek",
+      "repere": "Odnośnik",
+      "note": "Notatka"
+    }
+  },
+  "note": {
+    "title": "Notatka",
+    "add": "Dodaj notatkę do {{ref}}",
+    "edit": "Notatka do {{ref}}",
+    "placeholder": "np. czop 22 mm albo z której strony pasuje",
+    "save": "Zapisz",
+    "delete": "Usuń notatkę",
+    "count_one": "{{count}} notatka",
+    "count_few": "{{count}} notatki",
+    "count_many": "{{count}} notatek",
+    "count_other": "{{count}} notatki",
+    "none": "Brak notatek. Dodaj pierwszą z listy części na planszy.",
+    "section": "Notatki",
+    "lede": "Twoje własne uwagi o numerze części, widoczne wszędzie, gdzie ten numer występuje. Są przechowywane tylko w tej przeglądarce, więc wyeksportuj je, jeśli są ważne.",
+    "export": "Eksport",
+    "import": "Import",
+    "file": "dialogysx-notatki.json",
+    "clear": "Usuń wszystkie notatki",
+    "imported": "Dodano {{added}}, zaktualizowano {{updated}}, zachowano {{kept}}.",
+    "importFailed": "Ten plik nie zawiera notatek, które dialogysx potrafi odczytać.",
+    "limit": "Pozostało znaków: {{count}}"
   }
 }

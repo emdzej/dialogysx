@@ -72,7 +72,10 @@
     "callout": "Callout {{id}}",
     "notFound": "Drawing not found in this tree.",
     "noPositions": "No callout positions on record for this drawing.",
-    "none": "No drawing for this plate."
+    "none": "No drawing for this plate.",
+    "copy": "Copy the diagram",
+    "copied": "Copied",
+    "copyFailed": "This browser would not take an image"
   },
   "language": {
     "section": "Language",
@@ -131,7 +134,10 @@
     "whyLabel": "{{ref}}: show the conditions",
     "detailTitle": "When this part applies",
     "detailUndecidedLead": "Undecided: this vehicle does not answer every criterion below. Fits if any of these hold.",
-    "detailFitsLead": "Fits because one of these holds."
+    "detailFitsLead": "Fits because one of these holds.",
+    "copyRef": "Copy reference {{ref}}",
+    "copyName": "Copy name {{name}}",
+    "copied": "Copied"
   },
   "docs": {
     "unavailable": "No repair documentation for this model. Its name is not in pr/FamilleModeleAll.dat, which is what maps a model to a document family — so the original has none for it either.",
@@ -213,5 +219,62 @@
     "filesWritten_other": "{{n}} files written",
     "entryClashes_one": "— {{n}} archive entry clashed",
     "entryClashes_other": "— {{n}} archive entries clashed"
+  },
+  "bin": {
+    "title": "Parts bin",
+    "open": "Parts bin",
+    "empty": "Nothing in the bin yet. Add a part from a plate's list.",
+    "add": "Add {{ref}} to the bin",
+    "inBin": "{{count}} in the bin",
+    "lines_one": "{{count}} line",
+    "lines_other": "{{count}} lines",
+    "pieces_one": "{{count}} piece",
+    "pieces_other": "{{count}} pieces",
+    "quantity": "Qty",
+    "remove": "Remove {{ref}} from the bin",
+    "clear": "Empty the bin",
+    "print": "Print",
+    "csv": "CSV",
+    "csvFile": "dialogysx-parts-bin.csv",
+    "from": "From",
+    "confirm": "check",
+    "confirmTitle": "Listed but undecided for this vehicle — confirm before ordering",
+    "printedFor": "Vehicle",
+    "footer": "Collected with dialogysx. Check each number against the plate before ordering.",
+    "column": {
+      "ref": "Reference",
+      "name": "Name",
+      "quantity": "Qty",
+      "confirm": "Confirm",
+      "brand": "Brand",
+      "model": "Model",
+      "vehicle": "Vehicle",
+      "group": "PR group",
+      "assembly": "Assembly",
+      "plate": "Plate",
+      "diagram": "Diagram",
+      "repere": "Callout",
+      "note": "Note"
+    }
+  },
+  "note": {
+    "title": "Note",
+    "add": "Add a note to {{ref}}",
+    "edit": "Note on {{ref}}",
+    "placeholder": "e.g. 22 mm spigot, or which side it fits",
+    "save": "Save",
+    "delete": "Delete the note",
+    "count_one": "{{count}} note",
+    "count_other": "{{count}} notes",
+    "none": "No notes yet. Add one from a part in a plate's list.",
+    "section": "Notes",
+    "lede": "Your own words about a part reference, shown wherever that reference appears. They live in this browser only, so export them if they matter.",
+    "export": "Export",
+    "import": "Import",
+    "file": "dialogysx-notes.json",
+    "clear": "Delete all notes",
+    "imported": "Added {{added}}, updated {{updated}}, kept {{kept}}.",
+    "importFailed": "That file holds no notes dialogysx can read.",
+    "limit": "{{count}} characters left"
   }
 }

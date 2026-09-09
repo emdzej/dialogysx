@@ -9,19 +9,49 @@
    */
   // Condition text is precomputed by the session, which holds the PR group's
   // value table; the interface has no way to resolve operand indices itself.
+  import Copy from "@lucide/svelte/icons/copy";
   import Info from "@lucide/svelte/icons/info";
+  import ShoppingCart from "@lucide/svelte/icons/shopping-cart";
+  import StickyNote from "@lucide/svelte/icons/sticky-note";
   import { ui } from "./ui.svelte.js";
   import X from "@lucide/svelte/icons/x";
   import type { ResolvedPlate } from "@dialogysx/catalogue";
+  import type { BinProvenance } from "./bin.js";
+  import { bin } from "./bin.svelte.js";
+  import { notes } from "./notes.svelte.js";
+  import { copyText } from "./clipboard.js";
 
   interface Props {
     plate: ResolvedPlate;
     active: number | undefined;
     onHover: (repere: number | undefined) => void;
     onPin: (repere: number) => void;
+    /** Where these parts were found, recorded on anything added to the bin. */
+    provenance?: BinProvenance;
+    /** Opens the note editor for a reference. */
+    onNote?: (ref: string, name?: string) => void;
   }
 
-  let { plate, active, onHover, onPin }: Props = $props();
+  let { plate, active, onHover, onPin, provenance = {}, onNote }: Props = $props();
+
+  /** Which action has just fired, for the transient tick. */
+  let flashed = $state("");
+
+  function flash(key: string): void {
+    flashed = key;
+    setTimeout(() => (flashed = ""), 1600);
+  }
+
+  /**
+   * Copy, without also selecting the callout.
+   *
+   * The row's own click pins a callout, which is not what a copy button means,
+   * so the event stops here.
+   */
+  async function copy(key: string, value: string, event: MouseEvent): Promise<void> {
+    event.stopPropagation();
+    if (await copyText(value)) flash(key);
+  }
 
   const rows = $derived(
     plate.reperes.flatMap((r) => [
@@ -31,6 +61,29 @@
   );
 
   type Row = (typeof rows)[number];
+
+  /**
+   * Add a row to the bin.
+   *
+   * Quantity is 1, not the plate's own: `RefQte` exists in this data but lives
+   * in the consigne blocks and never reaches the parts list, so there is
+   * nothing truthful to seed from. It is editable in the bin.
+   *
+   * `undecided` rides along because it changes what the line *means* — a
+   * number to confirm before ordering rather than one shown to fit.
+   */
+  function addToBin(row: Row, event: MouseEvent): void {
+    event.stopPropagation();
+    bin.add({
+      ref: row.cand.ref,
+      name: row.cand.name,
+      quantity: 1,
+      undecided: row.state === "unknown",
+      repere: row.repere,
+      ...provenance,
+    });
+    flash(`b${row.cand.ref}`);
+  }
 
   /** The row whose applicability is being shown, if any. */
   let detail = $state<{ row: Row; i: number } | undefined>(undefined);
@@ -110,10 +163,61 @@
                 >{ui("parts.choice")}</span
               >
             {/if}
+            <!--
+              Row actions. A cart with the reference, a note marker, and copy
+              for the number and the name. Revealed rather than always shown —
+              see the note in the stylesheet.
+            -->
+            <button
+              class="reveal add"
+              class:has={bin.has(row.cand.ref)}
+              class:done={flashed === `b${row.cand.ref}`}
+              onclick={(e) => addToBin(row, e)}
+              title={ui("bin.add", { ref: row.cand.ref })}
+              aria-label={ui("bin.add", { ref: row.cand.ref })}
+              data-testid="row-add"
+            >
+              <ShoppingCart size={12} strokeWidth={2} />
+            </button>
+            <button
+              class="reveal note"
+              class:has={Boolean(notes.get(row.cand.ref))}
+              onclick={(e) => {
+                e.stopPropagation();
+                onNote?.(row.cand.ref, row.cand.name);
+              }}
+              title={notes.get(row.cand.ref) ?? ui("note.add", { ref: row.cand.ref })}
+              aria-label={ui("note.edit", { ref: row.cand.ref })}
+              data-testid="row-note"
+            >
+              <StickyNote size={12} strokeWidth={2} />
+            </button>
+            <button
+              class="reveal copy"
+              class:done={flashed === `r${row.cand.ref}`}
+              onclick={(e) => copy(`r${row.cand.ref}`, row.cand.ref, e)}
+              title={ui("parts.copyRef", { ref: row.cand.ref })}
+              aria-label={ui("parts.copyRef", { ref: row.cand.ref })}
+              data-testid="row-copy-ref"
+            >
+              <Copy size={11} strokeWidth={2} />
+            </button>
           </td>
           <td class="name">
             {#if row.cand.name}
               {row.cand.name}
+              <!-- Only when there is a name to copy: a button that would put
+                   "not in this tariff" on the clipboard is worse than none. -->
+              <button
+                class="reveal copy"
+                class:done={flashed === `n${row.cand.ref}`}
+                onclick={(e) => copy(`n${row.cand.ref}`, row.cand.name ?? "", e)}
+                title={ui("parts.copyName", { name: row.cand.name })}
+                aria-label={ui("parts.copyName", { name: row.cand.name })}
+                data-testid="row-copy-name"
+              >
+                <Copy size={11} strokeWidth={2} />
+              </button>
             {:else}
               <!-- A tariff names only the parts sold in that market, so under
                    half of all references have a description. Say so rather
@@ -163,6 +267,63 @@
 {/if}
 
 <style>
+  /*
+   * Revealed, not added.
+   *
+   * Ninety rows each carrying four visible buttons is a wall of icons, so they
+   * sit at zero opacity and appear for the row in question — on hover where
+   * there is a hovering pointer, and on the *selected* row where there is not,
+   * because a touch user's only way to indicate a row is to tap it, which is
+   * already what pins the callout.
+   *
+   * `pointer-events: none` while hidden matters: an invisible button that was
+   * still clickable would put a copy control over every part number on the
+   * plate. Keyboard focus is unaffected, so tabbing in still reveals them
+   * through `:focus-within`.
+   */
+  .reveal {
+    display: inline-flex;
+    vertical-align: -1px;
+    margin-left: 0.28rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--dim);
+    opacity: 0;
+    pointer-events: none;
+    cursor: pointer;
+    transition: opacity 90ms linear;
+  }
+  tr.active .reveal,
+  tr:focus-within .reveal {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  @media (hover: hover) and (pointer: fine) {
+    tr:hover .reveal {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+  .reveal:hover {
+    color: var(--ink);
+  }
+  /* A confirmation that reads at a glance and needs no layout shift. */
+  .reveal.done {
+    opacity: 1;
+    pointer-events: auto;
+    color: var(--blue);
+  }
+  /*
+   * A part already in the bin, or carrying a note, keeps its marker visible —
+   * so both can be found again without hovering every row in turn.
+   */
+  .add.has,
+  .note.has {
+    opacity: 1;
+    pointer-events: auto;
+    color: var(--blue);
+  }
   table {
     border-collapse: collapse;
     width: 100%;

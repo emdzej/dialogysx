@@ -26,10 +26,15 @@
   import Drawing from "./lib/Drawing.svelte";
   import PartsList from "./lib/PartsList.svelte";
   import SettingsIcon from "@lucide/svelte/icons/settings";
+  import ShoppingCart from "@lucide/svelte/icons/shopping-cart";
   import Wrench from "@lucide/svelte/icons/wrench";
   import Import from "./lib/Import.svelte";
   import Settings from "./lib/Settings.svelte";
   import { ui } from "./lib/ui.svelte.js";
+  import { bin } from "./lib/bin.svelte.js";
+  import { notes } from "./lib/notes.svelte.js";
+  import NoteEditor from "./lib/NoteEditor.svelte";
+  import PartsBin from "./lib/PartsBin.svelte";
   import { HttpTreeSource } from "./lib/http-source";
   import { csfsSource } from "./lib/csfs-source";
   import { isSupported, LocalDirectorySource, revokeImageUrl } from "./lib/local-source";
@@ -286,6 +291,18 @@
   <About onClose={() => (aboutOpen = false)} />
 {/if}
 
+{#if bin.open}
+  <PartsBin onClose={() => (bin.open = false)} />
+{/if}
+
+{#if notes.editing}
+  <NoteEditor
+    ref={notes.editing.ref}
+    name={notes.editing.name}
+    onClose={() => (notes.editing = undefined)}
+  />
+{/if}
+
 {#if importOpen}
   <Import
     onClose={() => (importOpen = false)}
@@ -374,6 +391,21 @@
       </a>
     </div>
     <div class="open">
+      <!-- The bin comes first because it is the only one of these that holds
+           state: it carries a count, and a control with a number on it wants
+           to be found in the same place every time. -->
+      <button
+        class="gear basket"
+        class:full={bin.count > 0}
+        onclick={() => (bin.open = true)}
+        title={ui("bin.open")}
+        aria-haspopup="dialog"
+        aria-label={bin.count > 0 ? ui("bin.inBin", { count: bin.count }) : ui("bin.open")}
+        data-testid="bin-open"
+      >
+        <ShoppingCart size={16} strokeWidth={1.9} />
+        {#if bin.count > 0}<span class="badge" data-testid="bin-count">{bin.count}</span>{/if}
+      </button>
       <!-- The source controls live in the settings dialog now. They were a
            permanent fixture in the bar for a choice made once, and the tree in
            use is already named in the chrome below. -->
@@ -699,6 +731,17 @@
               active={app.activeRepere}
               onHover={(r) => app.hover(r)}
               onPin={(r) => app.pin(r)}
+              provenance={{
+                brand: app.brand?.label,
+                model: app.model?.name,
+                vehicle: app.vehicle?.type,
+                group: app.group,
+                assembly: app.assembly,
+                assemblyLabel: app.assemblyLabel,
+                plate: app.plate.plate,
+                diagram: plates.findIndex((x) => x.p.plate === app.plate?.plate) + 1 || undefined,
+              }}
+              onNote={(ref, name) => (notes.editing = { ref, name })}
             />
           </div>
         </div>
@@ -740,6 +783,47 @@
     --red: #e1000f;
     --mono: ui-monospace, "SF Mono", "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas, monospace;
     --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  /*
+   * Printing.
+   *
+   * `window.print()` prints the page, and the page is an application: the
+   * top bar, the assembly panel and the dialog the print was started from
+   * would all come out on paper. So printing hides everything and the one
+   * thing meant for paper opts back in by carrying `data-print`.
+   *
+   * Global because the sheet lives in another component and Svelte's scoping
+   * would otherwise stop this reaching it.
+   */
+  @media print {
+    /*
+     * `visibility`, not `display`.
+     *
+     * The sheet is nested inside the app's mount point, so hiding the app's
+     * top-level children hides the sheet with them and no `display: block` on
+     * a descendant can revive it — a hidden ancestor is final. `visibility`
+     * inherits and *can* be turned back on further down, which is what makes
+     * "hide everything, then show this subtree" expressible at all.
+     *
+     * The sheet is then lifted to the page origin, because leaving it in flow
+     * prints a page of whitespace where the invisible application used to be.
+     */
+    :global(body *) {
+      visibility: hidden;
+    }
+    :global([data-print]),
+    :global([data-print] *) {
+      visibility: visible;
+    }
+    :global([data-print]) {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+    }
+    :global(body) {
+      background: #fff;
+    }
   }
   :global(body) {
     margin: 0;
@@ -1017,6 +1101,27 @@
   .diagramtabs button:focus-visible {
     outline: 2px solid var(--blue);
     outline-offset: -2px;
+  }
+  /* The bin button carries a count, so it needs room for the badge. */
+  .basket {
+    position: relative;
+  }
+  .basket.full {
+    color: var(--blue);
+  }
+  .badge {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    min-width: 13px;
+    padding: 0 2px;
+    border-radius: 7px;
+    background: var(--blue);
+    color: var(--card);
+    font-size: 9px;
+    line-height: 13px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
   }
   .platehead {
     display: flex;

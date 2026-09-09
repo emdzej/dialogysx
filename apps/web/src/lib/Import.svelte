@@ -563,10 +563,6 @@
     font-family: var(--mono);
     font-size: 11.5px;
   }
-  code {
-    font-family: var(--mono);
-    font-size: 11.5px;
-  }
   .row {
     display: flex;
     flex-wrap: wrap;
