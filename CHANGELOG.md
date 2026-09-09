@@ -54,6 +54,12 @@ Installable, and usable with no network.
 
 ### Changed
 
+- **`@emdzej/csfs-*` 0.1.1.** Fixes a case where a nested write failed on a
+  filesystem opened case-insensitively, which left OPFS effectively read-only
+  below the root. dialogysx opens it case-sensitively, so the fault could not
+  reach the copy here — but the symptom it produced (storage usage staying flat
+  while a copy reports progress) is precisely what a real copy has now been
+  measured against.
 - The dev server looks for a tree in `./data` and then
   `/Volumes/data/dialogysx`, and says where it looked when it finds neither.
 - Update installation is a prompt, not a silent swap. This is used at a bench
@@ -68,10 +74,11 @@ view, and `Dates` semantics are understood by shape rather than specified.
 
 New with this release:
 
-- A copy stored in the browser has been exercised against a real tree only at
-  catalogue scale, and its round trip was verified with seeded files rather
-  than a full copy. The 43,273-file repair documentation is a different
-  proposition and its timing is unmeasured.
+- A copy stored in the browser has been exercised at catalogue scale only:
+  **643 files and 857 MB in about 22 seconds**, then opened and driven with the
+  network off — a vehicle identified, a plate read, its drawing and hotspot
+  rendered. The 43,273-file repair documentation is a different proposition and
+  remains unmeasured; file count rather than size is the thing to watch there.
 - Clearing leaves an empty directory behind, because the refresh that follows
   re-opens the namespace and opening creates it. The files are gone and the
   usage figure drops; the husk is harmless.
