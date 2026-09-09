@@ -276,5 +276,36 @@
     "imported": "Added {{added}}, updated {{updated}}, kept {{kept}}.",
     "importFailed": "That file holds no notes dialogysx can read.",
     "limit": "{{count}} characters left"
+  },
+  "pwa": {
+    "updateReady": "A new version is ready.",
+    "reload": "Reload",
+    "offline": "Offline",
+    "offlineTitle": "No network. A tree in a folder on this machine still works; one served over HTTP does not.",
+    "offlineHttp": "There is no network, and this tree is served over HTTP. Open a folder on this machine instead, or reconnect."
+  },
+  "offline": {
+    "title": "Stored in this browser",
+    "unsupported": "This browser cannot store a tree. Use a folder on this machine instead.",
+    "empty": "Nothing stored yet. Copy the open tree here and it will read with no network, and with no permission prompt.",
+    "held": "{{files}} files · {{size}}",
+    "open": "Open the stored copy",
+    "copy": "Copy the open tree here",
+    "copyNeedsTree": "Open a tree first, then copy it here",
+    "scope": "What to copy",
+    "scopeCatalogue": "Catalogue and drawings",
+    "scopeEverything": "Everything, including the repair documentation",
+    "scopeHint": "The catalogue with every drawing is a fraction of the size; the repair manuals are most of a tree.",
+    "cancel": "Stop",
+    "copying": "Copying {{done}} of {{total}} — {{size}}",
+    "storage": "{{used}} used of {{available}} available",
+    "persisted": "Kept permanently — the browser will not evict it",
+    "notPersisted": "May be evicted if the device runs short of space",
+    "delete": "Delete the stored copy",
+    "done": "Copied {{copied}} files.",
+    "doneFailed": "Copied {{copied}} files; {{failed}} could not be read.",
+    "cancelled": "Stopped after {{copied}} files. Copying again continues where it left off.",
+    "noManifest": "That tree has no csfs-manifest.json, so its contents cannot be listed. Run `dialogysx manifest` over it first.",
+    "tooBig": "Not enough room in this browser: {{needed}} to copy, {{available}} available. Copy the catalogue only, or free some space."
   }
 }

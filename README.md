@@ -183,7 +183,7 @@ pnpm install && pnpm build
 # Catalogue only, English: 0.83 GB, ~4 min
 node apps/cli/dist/index.js import /Volumes/dialogysDVD1 -o data -l en
 
-pnpm dev                       # finds ./data on its own
+pnpm dev                       # finds the tree on its own
 ```
 
 Open the URL it prints. With nothing remembered the settings panel opens by
@@ -198,10 +198,15 @@ go straight to the catalogue. The language comes from the tree's
 
 ### Browse it
 
-The dev server serves a tree at `/data` with `Range` support:
+The dev server serves a tree at the URL `/data`, with `Range` support. It
+looks for one in `./data` and then `/Volumes/data/dialogysx`, so usually there
+is nothing to set:
 
 ```sh
-DIALOGYSX_DATA=$PWD/data pnpm --filter @dialogysx/web dev
+pnpm dev
+
+# Or point it anywhere:
+DIALOGYSX_DATA=/Volumes/data/dialogysx pnpm --filter @dialogysx/web dev
 ```
 
 `Range` is required — the client rejects a host that ignores it rather than
@@ -238,7 +243,7 @@ faster path when you have Node.
 Browser tests need both a server and a tree, so `pnpm test` alone skips them:
 
 ```sh
-DIALOGYSX_DATA=$PWD/data pnpm --filter @dialogysx/web dev --port 5199
+DIALOGYSX_DATA=/Volumes/data/dialogysx pnpm --filter @dialogysx/web dev --port 5199
 DIALOGYSX_E2E_URL=http://localhost:5199 pnpm test
 ```
 

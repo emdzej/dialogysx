@@ -310,5 +310,36 @@
     "imported": "Dodano {{added}}, zaktualizowano {{updated}}, zachowano {{kept}}.",
     "importFailed": "Ten plik nie zawiera notatek, które dialogysx potrafi odczytać.",
     "limit": "Pozostało znaków: {{count}}"
+  },
+  "pwa": {
+    "updateReady": "Nowa wersja jest gotowa.",
+    "reload": "Odśwież",
+    "offline": "Offline",
+    "offlineTitle": "Brak sieci. Dane z folderu na tym komputerze nadal działają, dane udostępniane przez HTTP nie.",
+    "offlineHttp": "Brak sieci, a te dane są udostępniane przez HTTP. Otwórz folder na tym komputerze albo połącz się ponownie."
+  },
+  "offline": {
+    "title": "Zapisane w tej przeglądarce",
+    "unsupported": "Ta przeglądarka nie może przechowywać danych. Użyj folderu na tym komputerze.",
+    "empty": "Nic jeszcze nie zapisano. Skopiuj tu otwarte dane i będą czytane bez sieci i bez pytania o uprawnienia.",
+    "held": "{{files}} plików · {{size}}",
+    "open": "Otwórz zapisaną kopię",
+    "copy": "Skopiuj tu otwarte dane",
+    "copyNeedsTree": "Najpierw otwórz dane, potem skopiuj je tutaj",
+    "scope": "Co skopiować",
+    "scopeCatalogue": "Katalog i rysunki",
+    "scopeEverything": "Wszystko, razem z dokumentacją naprawczą",
+    "scopeHint": "Katalog ze wszystkimi rysunkami to niewielka część rozmiaru; instrukcje naprawcze to większość danych.",
+    "cancel": "Zatrzymaj",
+    "copying": "Kopiowanie {{done}} z {{total}} — {{size}}",
+    "storage": "Zajęte {{used}} z dostępnych {{available}}",
+    "persisted": "Zachowane trwale — przeglądarka tego nie usunie",
+    "notPersisted": "Może zostać usunięte, jeśli zabraknie miejsca na urządzeniu",
+    "delete": "Usuń zapisaną kopię",
+    "done": "Skopiowano {{copied}} plików.",
+    "doneFailed": "Skopiowano {{copied}} plików; {{failed}} nie udało się odczytać.",
+    "cancelled": "Zatrzymano po {{copied}} plikach. Ponowne kopiowanie ruszy od tego miejsca.",
+    "noManifest": "Te dane nie mają pliku csfs-manifest.json, więc nie da się wypisać ich zawartości. Uruchom najpierw `dialogysx manifest`.",
+    "tooBig": "Za mało miejsca w tej przeglądarce: do skopiowania {{needed}}, dostępne {{available}}. Skopiuj tylko katalog albo zwolnij miejsce."
   }
 }

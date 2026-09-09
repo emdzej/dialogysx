@@ -27,11 +27,15 @@
   import PartsList from "./lib/PartsList.svelte";
   import SettingsIcon from "@lucide/svelte/icons/settings";
   import ShoppingCart from "@lucide/svelte/icons/shopping-cart";
+  import WifiOff from "@lucide/svelte/icons/wifi-off";
   import Wrench from "@lucide/svelte/icons/wrench";
   import Import from "./lib/Import.svelte";
   import Settings from "./lib/Settings.svelte";
   import { ui } from "./lib/ui.svelte.js";
   import { bin } from "./lib/bin.svelte.js";
+  import { pwa } from "./lib/pwa.svelte.js";
+  import { offline } from "./lib/offline.svelte.js";
+  import type { CopyScope } from "./lib/offline.js";
   import { notes } from "./lib/notes.svelte.js";
   import NoteEditor from "./lib/NoteEditor.svelte";
   import PartsBin from "./lib/PartsBin.svelte";
@@ -55,6 +59,8 @@
   let settingsOpen = $state(false);
   let importOpen = $state(false);
   let saved = $state<SavedSource | undefined>(undefined);
+  /** The tree came from `?data=`, so nothing here should be persisted. */
+  let overridden = $state(false);
   /** A remembered folder the browser will not let us read without a click. */
   let needsPermission = $state(false);
   let settingsError = $state<string | undefined>(undefined);
@@ -80,6 +86,9 @@
    * tree every time somebody picked a model.
    */
   function persistSelection(): void {
+    // An overridden tree writes nothing: the remembered selection belongs to
+    // the remembered tree, and browsing a link's tree must not overwrite it.
+    if (overridden) return;
     const current = loadSettings();
     const selection = app.selection;
     saveSettings({ ...current, ...(selection ? { selection } : {}) });
@@ -87,11 +96,87 @@
 
   app.onSelectionChange = persistSelection;
 
+  /**
+   * `?data=<url>` — open a tree without touching what is remembered.
+   *
+   * For a link someone can be handed: a workshop with a tree on a local
+   * server, a demo, a bug report that says which tree it happened on. It
+   * deliberately does **not** persist, so following a link does not silently
+   * replace the tree the machine normally uses — close the tab and the
+   * remembered one is back.
+   *
+   * Relative values are allowed and useful (`?data=/data`). Anything that is
+   * not a URL at all is ignored rather than fatal, because a mangled link
+   * should still get you a usable application.
+   */
+  function urlOverride(): string | undefined {
+    if (typeof location === "undefined") return undefined;
+    const raw = new URLSearchParams(location.search).get("data");
+    if (!raw) return undefined;
+    try {
+      // Resolved against the page, which validates it and lets a relative
+      // path through unchanged.
+      new URL(raw, location.href);
+      return raw;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Copy whatever is open into this browser.
+   *
+   * From the *live source*, so it works the same from an HTTP tree and from a
+   * picked folder — which is the point: whatever you can read now, you can
+   * take offline. Nothing is switched over afterwards; the copy is opened
+   * deliberately, so a copy made in passing does not change what the app
+   * reads next time.
+   */
+  async function copyOffline(scope: CopyScope): Promise<void> {
+    const source = app.source;
+    if (!source) return;
+    await offline.copyFrom(source, scope);
+  }
+
+  /** Open the copy held here, and remember it as the source. */
+  async function openOffline(): Promise<void> {
+    settingsError = undefined;
+    try {
+      const fs = await offline.open();
+      await app.open(csfsSource(fs), ui("offline.title"), app.language);
+      saved = { kind: "offline" };
+      overridden = false;
+      saveSettings({ ...loadSettings(), source: saved });
+      settingsOpen = false;
+      await app.restoreSelection(loadSettings().selection);
+    } catch (e) {
+      settingsError = e instanceof Error ? e.message : String(e);
+    }
+  }
+
   async function restore(): Promise<void> {
     const settings = loadSettings();
+
+    const override = urlOverride();
+    if (override) {
+      saved = { kind: "http", url: override };
+      overridden = true;
+      await app.open(await httpSource(override), override, settings.language);
+      // No `restoreSelection`: the remembered selection belongs to the
+      // remembered tree, and a plate code from another tree either misses or,
+      // worse, resolves to something unrelated.
+      return;
+    }
+
     saved = settings.source;
     if (!settings.source) {
       settingsOpen = true;
+      return;
+    }
+    if (settings.source.kind === "offline") {
+      // No prompt and no handle: the reason to have copied it here at all.
+      await app.open(csfsSource(await offline.open()), ui("offline.title"), settings.language);
+      await app.restoreSelection(settings.selection);
       return;
     }
     if (settings.source.kind === "http") {
@@ -295,6 +380,18 @@
   <PartsBin onClose={() => (bin.open = false)} />
 {/if}
 
+{#if pwa.updateReady}
+  <!--
+    A prompt, not a silent swap. This is used at a bench with a car in pieces;
+    replacing the assets underneath someone mid-job to install an update they
+    did not ask for is worse than telling them one is ready.
+  -->
+  <div class="toast" role="status" data-testid="update-toast">
+    <span>{ui("pwa.updateReady")}</span>
+    <button onclick={() => pwa.update()} data-testid="update-reload">{ui("pwa.reload")}</button>
+  </div>
+{/if}
+
 {#if notes.editing}
   <NoteEditor
     ref={notes.editing.ref}
@@ -335,6 +432,8 @@
     onReopenFolder={() => reopenFolder()}
     onForgetFolder={() => forgetFolder()}
     onImport={isSupported() ? () => (importOpen = true) : undefined}
+    onCopyOffline={app.source ? (scope) => copyOffline(scope) : undefined}
+    onOpenOffline={() => openOffline()}
     languages={app.languages}
     language={app.language}
     partNameCountry={app.session?.partNameCountry}
@@ -399,6 +498,16 @@
       they fit — and the header already wraps, which is what happens below
       that rather than an overflow.
     -->
+    {#if pwa.offline}
+      <!-- Said once, in the chrome. The alternative is saying nothing until a
+           read fails, which reads as the tree being broken rather than the
+           network being absent. -->
+      <span class="offline" title={ui("pwa.offlineTitle")} data-testid="offline">
+        <WifiOff size={12} strokeWidth={2} />
+        {ui("pwa.offline")}
+      </span>
+    {/if}
+
     <div class="ident">
     {#if app.brands.length > 1}
       <Combo
@@ -482,7 +591,7 @@
         data-testid="bin-open"
       >
         <ShoppingCart size={16} strokeWidth={1.9} />
-        {#if bin.count > 0}<span class="badge" data-testid="bin-count">{bin.count}</span>{/if}
+        {#if bin.count > 0}<span class="bincount" data-testid="bin-count">{bin.count}</span>{/if}
       </button>
       <!-- The source controls live in the settings dialog now. They were a
            permanent fixture in the bar for a choice made once, and the tree in
@@ -1177,7 +1286,14 @@
    * bar behind them, so a full basket showed as an empty box with a stray
    * digit. A control must not become less legible for being in use.
    */
-  .badge {
+  /*
+   * The bin's count, in the corner of its button.
+   *
+   * Named `bincount`, not `badge`: `.badge` was already the document count on
+   * the repair-documentation tab, and giving it `position: absolute` here sent
+   * that number to the top-right of the window the moment the tab was opened.
+   */
+  .bincount {
     position: absolute;
     top: -3px;
     right: -5px;
@@ -1193,6 +1309,46 @@
     text-align: center;
     /* Separated from whatever is behind it, icon or bar. */
     box-shadow: 0 0 0 1.5px var(--card);
+  }
+  .offline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    flex-shrink: 0;
+    padding: 0.1rem 0.35rem;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--red) 12%, transparent);
+    color: var(--red);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .toast {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--card);
+    box-shadow: 0 8px 28px color-mix(in srgb, var(--ink) 20%, transparent);
+    font-size: 0.82rem;
+  }
+  .toast button {
+    font: inherit;
+    font-weight: 600;
+    padding: 0.22rem 0.55rem;
+    border: 1px solid var(--blue);
+    border-radius: 3px;
+    background: var(--card);
+    color: var(--blue);
+    cursor: pointer;
   }
   .platehead {
     display: flex;
