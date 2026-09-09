@@ -390,6 +390,85 @@
         </svg>
       </a>
     </div>
+    <!--
+      Identification, in the bar.
+      
+      It was a second row below, which cost 63px of vertical space for five
+      controls that are set once and then read. Measured before moving them:
+      658px of controls against 664px of free width at a 900px viewport, so
+      they fit — and the header already wraps, which is what happens below
+      that rather than an overflow.
+    -->
+    <div class="ident">
+    {#if app.brands.length > 1}
+      <Combo
+        testid="brands"
+        label={ui("identify.brand")}
+        items={[...app.brands]}
+        text={(b) => b.label}
+        key={(b) => b.id}
+        hint={(b) => `${b.modelIndices.length}`}
+        selected={app.brand}
+        onPick={(b) => app.selectBrand(b)}
+      />
+    {/if}
+
+    <Combo
+      testid="models"
+      label={ui("identify.model")}
+      items={app.models}
+      text={(m) => m.name}
+      key={(m) => m.name}
+      hint={(m) => m.prGroups.join(" ")}
+      selected={app.model}
+      onPick={(m) => app.selectModel(m)}
+    />
+
+    <Combo
+      testid="vehicles"
+      label={ui("identify.vehicle")}
+      items={app.vehicles}
+      text={vehicleLabel}
+      key={(v) => vehicleKey(v)}
+      selected={app.vehicle}
+      disabled={!app.model}
+      onPick={(v) => app.selectVehicle(v)}
+    />
+
+    <!-- The narrowing controls the original also has. A build number needs a
+         factory: `resolveDate` compares `factory + number` against the Dates
+         table, so one without the other decides nothing. -->
+    <label class:off={!app.vehicle}>
+      <span>{ui("identify.factory")}</span>
+      <select
+        data-testid="factory"
+        disabled={!app.vehicle || app.factories.length === 0}
+        bind:value={app.factory}
+        onchange={() => app.refine()}
+      >
+        <option value="">{ui("identify.any")}</option>
+        {#each app.factories as f (f)}
+          <option value={f}>{f}</option>
+        {/each}
+      </select>
+    </label>
+
+    <label class:off={!app.vehicle}>
+      <span>{ui("identify.buildNumber")}</span>
+      <input
+        data-testid="build-number"
+        class="build"
+        disabled={!app.vehicle}
+        placeholder="0005973"
+        bind:value={app.buildNumber}
+        onchange={() => app.refine()}
+        spellcheck="false"
+      />
+    </label>
+
+
+    </div>
+
     <div class="open">
       <!-- The bin comes first because it is the only one of these that holds
            state: it carries a count, and a control with a number on it wants
@@ -445,75 +524,6 @@
       {/if}
     </section>
   {:else}
-    <div class="bar">
-      {#if app.brands.length > 1}
-        <Combo
-          testid="brands"
-          label={ui("identify.brand")}
-          items={[...app.brands]}
-          text={(b) => b.label}
-          key={(b) => b.id}
-          hint={(b) => `${b.modelIndices.length}`}
-          selected={app.brand}
-          onPick={(b) => app.selectBrand(b)}
-        />
-      {/if}
-
-      <Combo
-        testid="models"
-        label={ui("identify.model")}
-        items={app.models}
-        text={(m) => m.name}
-        key={(m) => m.name}
-        hint={(m) => m.prGroups.join(" ")}
-        selected={app.model}
-        onPick={(m) => app.selectModel(m)}
-      />
-
-      <Combo
-        testid="vehicles"
-        label={ui("identify.vehicle")}
-        items={app.vehicles}
-        text={vehicleLabel}
-        key={(v) => vehicleKey(v)}
-        selected={app.vehicle}
-        disabled={!app.model}
-        onPick={(v) => app.selectVehicle(v)}
-      />
-
-      <!-- The narrowing controls the original also has. A build number needs a
-           factory: `resolveDate` compares `factory + number` against the Dates
-           table, so one without the other decides nothing. -->
-      <label class:off={!app.vehicle}>
-        <span>{ui("identify.factory")}</span>
-        <select
-          data-testid="factory"
-          disabled={!app.vehicle || app.factories.length === 0}
-          bind:value={app.factory}
-          onchange={() => app.refine()}
-        >
-          <option value="">{ui("identify.any")}</option>
-          {#each app.factories as f (f)}
-            <option value={f}>{f}</option>
-          {/each}
-        </select>
-      </label>
-
-      <label class:off={!app.vehicle}>
-        <span>{ui("identify.buildNumber")}</span>
-        <input
-          data-testid="build-number"
-          class="build"
-          disabled={!app.vehicle}
-          placeholder="0005973"
-          bind:value={app.buildNumber}
-          onchange={() => app.refine()}
-          spellcheck="false"
-        />
-      </label>
-
-
-    </div>
 
 
     <!-- The tabs sit below the identification bar because identification is
@@ -871,9 +881,18 @@
       var(--red) 66.666% 100%
     );
   }
+  /*
+   * A white bar with a blue rule under it, rather than a slab of blue.
+   *
+   * The colour still reads as the product's and stops the chrome competing
+   * with the drawing, which is black line art and the thing anyone is
+   * actually looking at. It also lets the identification fields be ordinary
+   * light inputs instead of five white boxes fighting a blue ground.
+   */
   header {
-    background: var(--blue);
-    color: #fff;
+    background: var(--card);
+    color: var(--ink);
+    border-bottom: 2px solid var(--blue);
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
@@ -898,7 +917,7 @@
     font-size: 0.98rem;
     font-weight: 700;
     letter-spacing: -0.01em;
-    color: #fff;
+    color: var(--ink);
     cursor: pointer;
   }
   .wordmark:hover {
@@ -912,18 +931,18 @@
    * glyph. This tint keeps the same red and clears 6:1.
    */
   .wordmark .accent {
-    color: #ff8080;
+    color: var(--blue);
   }
   .version {
     flex-shrink: 0;
     font-family: var(--mono);
     font-size: 0.7rem;
     font-variant-numeric: tabular-nums;
-    color: rgb(255 255 255 / 62%);
+    color: var(--ink-faint);
     text-decoration: none;
   }
   .version:hover {
-    color: #fff;
+    color: var(--ink);
   }
   /*
    * No border.
@@ -944,15 +963,15 @@
     border: 0;
     border-radius: 3px;
     background: none;
-    color: rgb(255 255 255 / 82%);
+    color: var(--ink-soft);
     cursor: pointer;
   }
   .gear:hover {
-    background: rgb(255 255 255 / 16%);
-    color: #fff;
+    background: rgb(0 0 0 / 7%);
+    color: var(--ink);
   }
   .gear:focus-visible {
-    outline: 2px solid #fff;
+    outline: 2px solid var(--blue);
     outline-offset: 1px;
   }
   .retry {
@@ -972,10 +991,10 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    color: rgb(255 255 255 / 62%);
+    color: var(--ink-faint);
   }
   .repo:hover {
-    color: #fff;
+    color: var(--ink);
   }
   .open {
     display: flex;
@@ -1000,30 +1019,52 @@
   }
 
   /* The identification bar: one row of comboboxes, no wasted height. */
-  .bar {
+  /*
+   * Identification, on the blue bar.
+   *
+   * The fields stay light with dark text rather than becoming translucent
+   * white: they are typed into, their dropdowns are light, and a field that
+   * matches its own popup is easier to read than one that matches the chrome.
+   * `min-width: 0` on the group is what lets them shrink before the header
+   * wraps, instead of forcing a horizontal scrollbar.
+   */
+  .ident {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem 1rem;
     align-items: flex-end;
-    padding: 0.6rem 1rem;
-    background: var(--card);
-    border-bottom: 1px solid var(--rule);
+    gap: 0.5rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
   }
-  .bar label {
+  .ident :global(.cwrap) {
+    min-width: 0;
+  }
+  /* Disabled fields recede rather than disappear: the control still says
+     what it is waiting for. */
+  .ident :global(input:disabled),
+  .ident select:disabled {
+    background: var(--paper);
+    color: var(--ink-faint);
+  }
+  /* Labels above their field, small and quiet — the pattern masax uses. They
+     are set once and then read, so they should not shout. */
+  .ident label {
     display: flex;
     flex-direction: column;
     gap: 0.15rem;
     min-width: 0;
   }
-  .bar label.off {
-    opacity: 0.45;
-  }
-  .bar label > span {
+  .ident label > span {
     font-size: 9.5px;
     font-weight: 700;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--ink-faint);
+  }
+  /* `.off` marked a field waiting on the vehicle. The `.ident` rules dim
+     disabled inputs directly, so the wrapper no longer needs to. */
+  .ident label.off {
+    opacity: 0.75;
   }
   select,
   .build {
@@ -1143,15 +1184,15 @@
     min-width: 14px;
     padding: 0 3px;
     border-radius: 7px;
-    background: #fff;
-    color: var(--blue);
+    background: var(--blue);
+    color: #fff;
     font-size: 9px;
     font-weight: 700;
     line-height: 14px;
     font-variant-numeric: tabular-nums;
     text-align: center;
-    /* Against the bar, not against the button it sits on. */
-    box-shadow: 0 0 0 1px var(--blue);
+    /* Separated from whatever is behind it, icon or bar. */
+    box-shadow: 0 0 0 1.5px var(--card);
   }
   .platehead {
     display: flex;
