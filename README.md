@@ -105,6 +105,7 @@ be enough to rebuild this from scratch.
   produces, the two manifests, and why nine archives stay packed.
 - [`docs/plan.md`](docs/plan.md) — why the project is shaped this way: sizing,
   architecture, phase order, ranked risks.
+- [`CHANGELOG.md`](CHANGELOG.md) — what changed, and what is still missing.
 
 ## Running it
 

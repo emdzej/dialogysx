@@ -1,6 +1,6 @@
 {
   "name": "@dialogysx/web",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Browser client for dialogysx — parts catalogue and repair documentation, client-side",
   "license": "PolyForm-Noncommercial-1.0.0",
