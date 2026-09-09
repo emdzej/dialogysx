@@ -396,7 +396,6 @@
            to be found in the same place every time. -->
       <button
         class="gear basket"
-        class:full={bin.count > 0}
         onclick={() => (bin.open = true)}
         title={ui("bin.open")}
         aria-haspopup="dialog"
@@ -770,6 +769,20 @@
    * dark shell would either wash them out or leave a bright plate fighting the
    * chrome around it.
    */
+  /*
+   * `border-box` everywhere.
+   *
+   * Nothing set this, so the default `content-box` meant `width: 100%` plus
+   * any padding or border overflowed its container by exactly that much — the
+   * note editor's textarea hung past the dialog's right edge, and every other
+   * full-width input was over by a pixel or two without being obvious.
+   */
+  :global(*),
+  :global(*::before),
+  :global(*::after) {
+    box-sizing: border-box;
+  }
+
   :global(:root) {
     --ink: #10151c;
     --ink-soft: #48525e;
@@ -912,21 +925,30 @@
   .version:hover {
     color: #fff;
   }
+  /*
+   * No border.
+   *
+   * A box around a glyph that is already a recognisable icon adds a rectangle
+   * and no information. What a button does need is somewhere to put a hover
+   * state, so the footprint stays and only the outline goes — slightly larger
+   * now, since a bare icon has no frame to define its target and the tap area
+   * was the border's only real contribution.
+   */
   .gear {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 1.7rem;
-    height: 1.7rem;
+    width: 1.8rem;
+    height: 1.8rem;
     padding: 0;
-    border: 1px solid rgb(255 255 255 / 28%);
-    border-radius: 2px;
+    border: 0;
+    border-radius: 3px;
     background: none;
     color: rgb(255 255 255 / 82%);
     cursor: pointer;
   }
   .gear:hover {
-    background: rgb(255 255 255 / 12%);
+    background: rgb(255 255 255 / 16%);
     color: #fff;
   }
   .gear:focus-visible {
@@ -1106,22 +1128,30 @@
   .basket {
     position: relative;
   }
-  .basket.full {
-    color: var(--blue);
-  }
+  /*
+   * The bar is `--blue`, so the icon stays white and the badge inverts.
+   *
+   * The first version painted the icon `--blue` when the bin had something in
+   * it and gave the badge a `--blue` background: both the same colour as the
+   * bar behind them, so a full basket showed as an empty box with a stray
+   * digit. A control must not become less legible for being in use.
+   */
   .badge {
     position: absolute;
-    top: -2px;
-    right: -4px;
-    min-width: 13px;
-    padding: 0 2px;
+    top: -3px;
+    right: -5px;
+    min-width: 14px;
+    padding: 0 3px;
     border-radius: 7px;
-    background: var(--blue);
-    color: var(--card);
+    background: #fff;
+    color: var(--blue);
     font-size: 9px;
-    line-height: 13px;
+    font-weight: 700;
+    line-height: 14px;
     font-variant-numeric: tabular-nums;
     text-align: center;
+    /* Against the bar, not against the button it sits on. */
+    box-shadow: 0 0 0 1px var(--blue);
   }
   .platehead {
     display: flex;
