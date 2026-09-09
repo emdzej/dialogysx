@@ -20,7 +20,15 @@
 export type SavedSource =
   | { kind: "http"; url: string }
   /** `name` is for the interface; the handle itself is in IndexedDB. */
-  | { kind: "folder"; name: string };
+  | { kind: "folder"; name: string }
+  /**
+   * A copy held in this browser's own storage.
+   *
+   * Nothing to record but the kind: there is one copy per origin and it is
+   * reached without a handle and without a prompt, which is the reason it is
+   * worth having.
+   */
+  | { kind: "offline" };
 
 /**
  * What was last being looked at.

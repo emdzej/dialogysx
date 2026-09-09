@@ -31,6 +31,15 @@ export type Status =
 
 export class AppState {
   status = $state<Status>({ kind: "idle" });
+  /**
+   * The source the open session reads through.
+   *
+   * Exposed because copying a tree into this browser has to read from
+   * whatever is in use — an HTTP tree or a picked folder — and the alternative
+   * is the caller keeping its own copy of something the state object already
+   * holds.
+   */
+  source = $state<FileSource | undefined>(undefined);
   session = $state<CatalogueSession | undefined>(undefined);
 
   /**
@@ -229,6 +238,10 @@ export class AppState {
   async open(source: FileSource, label: string, wanted?: string): Promise<void> {
     this.status = { kind: "loading", what: `opening ${label}` };
     try {
+      // Kept so a copy into this browser can read from whatever is open,
+      // whichever kind it is. Set before the session opens so a failure part
+      // way through still leaves something to retry against.
+      this.source = source;
       const language = await this.pickLanguage(source, wanted);
       this.language = language;
       const session = await CatalogueSession.open(source, { language });

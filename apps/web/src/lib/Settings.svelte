@@ -16,6 +16,10 @@
   import Link from "@lucide/svelte/icons/link";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import X from "@lucide/svelte/icons/x";
+  import CloudDownload from "@lucide/svelte/icons/cloud-download";
+  import Database from "@lucide/svelte/icons/database";
+  import { formatBytes, type CopyScope } from "./offline.js";
+  import { offline } from "./offline.svelte.js";
   import {
     UI_LOCALES,
     setUiPreference,
@@ -42,6 +46,10 @@
     onForgetFolder: () => void;
     /** Absent when the browser cannot write, so the offer is not made. */
     onImport?: () => void;
+    /** Copy the tree that is open now into this browser. */
+    onCopyOffline?: (scope: CopyScope) => void;
+    /** Open the copy already held here. */
+    onOpenOffline?: () => void;
     /** Catalogue languages the open tree carries. */
     languages?: string[];
     language?: string;
@@ -63,6 +71,8 @@
     onReopenFolder,
     onForgetFolder,
     onImport,
+    onCopyOffline,
+    onOpenOffline,
     languages = [],
     language,
     partNameCountry,
@@ -99,6 +109,9 @@
   // would fight the user as they typed.
   // svelte-ignore state_referenced_locally
   let url = $state(saved?.kind === "http" ? saved.url : "/data");
+  /** Default to the catalogue: it is a fraction of the size and the part
+      most people want offline. */
+  let scope = $state<CopyScope>("catalogue");
 
   function onKey(event: KeyboardEvent): void {
     if (event.key === "Escape" && !firstRun) onClose();
@@ -232,6 +245,132 @@
           </div>
         </section>
       {/if}
+
+      <!--
+        The copy held in this browser.
+        
+        Last in the tab because it is a step you take *after* opening a tree
+        somewhere else: it copies whatever is open now, so it cannot be the
+        first thing anyone does.
+      -->
+      <section data-testid="offline-section">
+        <h2><Database size={14} strokeWidth={1.9} /> {ui("offline.title")}</h2>
+
+        {#if !offline.supported}
+          <p class="hint warn">{ui("offline.unsupported")}</p>
+        {:else if offline.progress}
+          <p class="hint">
+            {ui("offline.copying", {
+              done: offline.progress.done,
+              total: offline.progress.total,
+              size: formatBytes(offline.progress.bytes, uiLocale()),
+            })}
+          </p>
+          <div class="bar" data-testid="offline-progress">
+            <div
+              class="fill"
+              style={`width: ${
+                offline.progress.totalBytes > 0
+                  ? (offline.progress.bytes / offline.progress.totalBytes) * 100
+                  : 0
+              }%`}
+            ></div>
+          </div>
+          <p class="hint mono">{offline.progress.current}</p>
+          <div class="row">
+            <button type="button" onclick={() => offline.cancel()} data-testid="offline-cancel">
+              {ui("offline.cancel")}
+            </button>
+          </div>
+        {:else}
+          {#if offline.held.files > 0}
+            <p class="current" data-testid="offline-held">
+              {ui("offline.held", {
+                files: offline.held.files.toLocaleString(uiLocale()),
+                size: formatBytes(offline.held.bytes, uiLocale()),
+              })}
+              <span class:warn={!offline.persisted}>
+                &middot; {offline.persisted
+                  ? ui("offline.persisted")
+                  : ui("offline.notPersisted")}
+              </span>
+            </p>
+          {:else}
+            <p class="hint">{ui("offline.empty")}</p>
+          {/if}
+
+          {#if offline.tooBig}
+            <p class="hint warn" data-testid="offline-toobig">
+              {ui("offline.tooBig", {
+                needed: formatBytes(offline.tooBig.needed, uiLocale()),
+                available: formatBytes(offline.tooBig.available ?? 0, uiLocale()),
+              })}
+            </p>
+          {/if}
+
+          {#if offline.outcome}
+            <p class="current" data-testid="offline-outcome">
+              {offline.outcome.cancelled
+                ? ui("offline.cancelled", { copied: offline.outcome.copied })
+                : offline.outcome.failed > 0
+                  ? ui("offline.doneFailed", {
+                      copied: offline.outcome.copied,
+                      failed: offline.outcome.failed,
+                    })
+                  : offline.outcome.copied === 0
+                    ? ui("offline.noManifest")
+                    : ui("offline.done", { copied: offline.outcome.copied })}
+            </p>
+          {/if}
+
+          <!-- The split is the whole reason there is a choice: the catalogue
+               with every drawing is a fraction of a full tree, and the repair
+               manuals are the rest of it. -->
+          <label class="scope">
+            <span>{ui("offline.scope")}</span>
+            <select bind:value={scope} data-testid="offline-scope">
+              <option value="catalogue">{ui("offline.scopeCatalogue")}</option>
+              <option value="everything">{ui("offline.scopeEverything")}</option>
+            </select>
+          </label>
+          <p class="hint">{ui("offline.scopeHint")}</p>
+
+          <div class="row">
+            <button
+              type="button"
+              class="primary"
+              disabled={!onCopyOffline}
+              title={onCopyOffline ? undefined : ui("offline.copyNeedsTree")}
+              onclick={() => onCopyOffline?.(scope)}
+              data-testid="offline-copy"
+            >
+              <CloudDownload size={14} strokeWidth={1.9} /> {ui("offline.copy")}
+            </button>
+            {#if offline.held.files > 0}
+              <button type="button" onclick={() => onOpenOffline?.()} data-testid="offline-open">
+                {ui("offline.open")}
+              </button>
+              <button
+                type="button"
+                class="danger"
+                onclick={() => offline.clear()}
+                data-testid="offline-delete"
+              >
+                <Trash2 size={14} strokeWidth={1.9} /> {ui("offline.delete")}
+              </button>
+            {/if}
+          </div>
+
+          {#if offline.storage.quota}
+            <p class="hint">
+              {ui("offline.storage", {
+                used: formatBytes(offline.storage.usage ?? 0, uiLocale()),
+                available: formatBytes(offline.storage.quota, uiLocale()),
+              })}
+            </p>
+          {/if}
+        {/if}
+      </section>
 
       <!-- Said plainly because the asymmetry is surprising: a URL reopens by
            itself, a folder cannot. -->
