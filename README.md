@@ -57,6 +57,21 @@ cannot supply, so what is checked is that the wizard opens and its worker
 boots. The zip reader under it _is_ proven, CRC-verified against three real
 archives.
 
+## Offline
+
+It installs as an application and the page opens with no network. The data is a
+separate question, and there are three answers: a folder on this machine (which
+never needed the network, at one permission click per session), **a copy stored
+in the browser** (no network and no prompt — Settings → Data), or a tree over
+HTTP (which does need one).
+
+The shell is cached and a tree is not, deliberately. The catalogue with every
+drawing is 0.85 GB across 642 files and the repair documentation is 14.44 GB
+across 43,273, so precaching one is not on the table — and caching reads as
+they happen would leave the app working for whichever plates you happened to
+open and broken for the rest. See
+[`docs/user-guide.md`](docs/user-guide.md#4-using-it-offline).
+
 ## Why it can be client-side only
 
 Dialogys addresses every record as `(position, longueur)` through a sorted,

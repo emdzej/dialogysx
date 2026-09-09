@@ -340,6 +340,7 @@
     "doneFailed": "Skopiowano {{copied}} plików; {{failed}} nie udało się odczytać.",
     "cancelled": "Zatrzymano po {{copied}} plikach. Ponowne kopiowanie ruszy od tego miejsca.",
     "noManifest": "Te dane nie mają pliku csfs-manifest.json, więc nie da się wypisać ich zawartości. Uruchom najpierw `dialogysx manifest`.",
-    "tooBig": "Za mało miejsca w tej przeglądarce: do skopiowania {{needed}}, dostępne {{available}}. Skopiuj tylko katalog albo zwolnij miejsce."
+    "tooBig": "Za mało miejsca w tej przeglądarce: do skopiowania {{needed}}, dostępne {{available}}. Skopiuj tylko katalog albo zwolnij miejsce.",
+    "clearAnyway": "Wyczyść pamięć tej przeglądarki"
   }
 }

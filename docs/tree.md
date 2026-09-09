@@ -195,7 +195,36 @@ listed at the end of a plan. That is how `TM.zip`, `tarif.zip` and `REACH.zip`
 were found in the first place, and it is why a new disc revision cannot quietly
 add data nobody notices.
 
-## 6. Resume, and what a reader may assume
+## 6. A copy in the browser
+
+The same tree can be held in a browser's own storage (OPFS), copied from
+whichever source is open. It is a byte copy with the same layout and the same
+two manifests, so nothing about the format changes — but it is worth knowing
+why anyone would:
+
+**It never prompts.** A picked directory comes back after a reload and its
+permission does not, so an app that wants to open and just work cannot rely on
+one. OPFS has no such gate, which is what makes "installed, no network, no
+clicks" reachable at all.
+
+Three properties a reader should know about that copy:
+
+- **The browser decides how large it may be**, and the limit is routinely
+  smaller than a full tree — measured at 7.52 GB granted on a machine with far
+  more free disk, against 15.30 GB of data. So a copy is often a _subset_, and
+  the catalogue without `mrnt/` is 0.85 GB precisely because that subset is the
+  useful one.
+- **It is evictable** unless `navigator.storage.persist()` has been granted.
+- **`csfs-manifest.json` travels with it**, so the copy describes itself and a
+  partial copy can be resumed by comparing sizes. Its claims are re-checked
+  against what is actually stored rather than trusted: a cancelled copy leaves
+  the manifest naming files it never wrote.
+
+The enumeration for such a copy comes from that manifest rather than from
+walking, for the same reason it exists in the first place — a source reached
+over HTTP cannot list a directory.
+
+## 7. Resume, and what a reader may assume
 
 An import is resumable: `.dialogysx-import.json` in the target records
 destination path → size written, so a second run skips what is already there

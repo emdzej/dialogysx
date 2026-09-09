@@ -3,6 +3,70 @@
 Notable changes, newest first. Versions are the tag on
 [releases](https://github.com/emdzej/dialogysx/releases), without a `v`.
 
+## 0.3.0
+
+Installable, and usable with no network.
+
+### Added
+
+- **Installs as an application**, and the page opens with no network. A
+  service worker caches the shell — the shell _only_, deliberately: the
+  catalogue with every drawing is 0.85 GB across 642 files and the repair
+  documentation is 14.44 GB across 43,273, so precaching a tree is not on the
+  table. Caching reads as they happen was the obvious alternative and is
+  worse, because it leaves the app working for whichever plates you happened
+  to open and broken for the rest.
+- **A copy of a tree held in the browser**, in Settings → Data. Copies from
+  whichever source is open — an HTTP tree or a folder — and reads back with no
+  network _and no permission prompt_, which a picked folder cannot do: the
+  handle survives a reload and the permission does not. Choose the catalogue
+  and drawings or everything, since the split is 0.85 GB against 15.30 GB.
+  Resumable, chunked so a 945 MB archive never lands on the heap whole, and
+  sized against the browser's quota before anything is written — that limit is
+  routinely _smaller than a full tree_, measured at 7.52 GB granted on a
+  machine with plenty of disk.
+- **`?data=<url>`** opens a tree from a link, for a workshop server, a demo, or
+  a bug report that names the tree it happened on. It does not persist and does
+  not restore the remembered selection: following a link should not replace the
+  tree a machine normally uses.
+- An **offline marker** in the chrome, so a tree that needs the network says so
+  rather than waiting for a read to fail obscurely.
+
+### Fixed
+
+- **The document count flew to the top of the window** when the repair
+  documentation tab was opened. `.badge` was already that count, and the parts
+  bin's corner marker restyled it as absolutely positioned.
+- **The production build had been broken** since the service-worker
+  registration landed — `workbox-window` is a peer dependency pnpm does not
+  hoist — and turbo's cache hid it, so `pnpm build` kept reporting success
+  against a `dist` that predated the module.
+
+### Changed
+
+- The dev server looks for a tree in `./data` and then
+  `/Volumes/data/dialogysx`, and says where it looked when it finds neither.
+- Update installation is a prompt, not a silent swap. This is used at a bench
+  with a car in pieces, and replacing the assets mid-job to install an update
+  nobody asked for is worse than saying one is ready.
+
+### Known gaps
+
+Still true from 0.2.0: **no result has been checked against an independently
+known answer**, the part search has no interface, notes have no management
+view, and `Dates` semantics are understood by shape rather than specified.
+
+New with this release:
+
+- A copy stored in the browser has been exercised against a real tree only at
+  catalogue scale. The 43,273-file repair documentation is a different
+  proposition and its timing is unmeasured.
+- Nothing detects that a stored copy has gone stale against the tree it came
+  from. Copying again reconciles it by size, but nobody is told they should.
+- The offline marker reads `navigator.onLine`, which means "this machine has a
+  network interface" and not "the tree is reachable". It explains a failure; it
+  cannot predict one.
+
 ## 0.2.0
 
 The release that made the catalogue usable rather than merely correct:
@@ -106,6 +170,7 @@ translated, navigable by diagram, and able to collect what you find.
 - Notes have no management view; export and import exist only in the store.
 - `Dates` semantics are understood by shape, not specified.
 - A tree served over plain HTTP cannot be read by a page served over HTTPS.
+  Storing a copy in the browser (0.3.0) is the way round it.
 
 ## 0.1.0
 

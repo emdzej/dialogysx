@@ -306,6 +306,7 @@
     "doneFailed": "Copied {{copied}} files; {{failed}} could not be read.",
     "cancelled": "Stopped after {{copied}} files. Copying again continues where it left off.",
     "noManifest": "That tree has no csfs-manifest.json, so its contents cannot be listed. Run `dialogysx manifest` over it first.",
-    "tooBig": "Not enough room in this browser: {{needed}} to copy, {{available}} available. Copy the catalogue only, or free some space."
+    "tooBig": "Not enough room in this browser: {{needed}} to copy, {{available}} available. Copy the catalogue only, or free some space.",
+    "clearAnyway": "Clear this browser's storage"
   }
 }

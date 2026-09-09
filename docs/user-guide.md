@@ -9,6 +9,7 @@ it reads that. Nothing is uploaded and there is no server component.
 
 - New here? → [Getting a data folder](#1-getting-a-data-folder)
 - Folder already built? → [Opening it](#3-opening-a-tree)
+- Want it to work with no network? → [Using it offline](#4-using-it-offline)
 - Want to know why a part says _undecided_? → [Narrowing a vehicle](#5-narrowing-a-vehicle)
 
 ## 1. Getting a data folder
@@ -118,7 +119,59 @@ directory. An import writes it; for an older tree, run:
 dialogysx manifest ./data
 ```
 
-## 4. Finding a part
+## 4. Using it offline
+
+Two halves, and they are worth keeping separate.
+
+**The application** installs. Chrome and Edge offer it in the address bar;
+Safari on iOS has _Add to Home Screen_. Installed, it opens with no network at
+all — the page, not the data.
+
+**The data** is the other half, and there are three answers:
+
+| route                            | works offline   | prompts          |
+| -------------------------------- | --------------- | ---------------- |
+| a folder on this machine         | yes, always did | once per session |
+| **a copy stored in the browser** | yes             | never            |
+| a tree over HTTP                 | no              | —                |
+
+A picked folder never needed the network, so with the app installed it already
+works on a bench. The catch is the permission: the browser remembers the folder
+and forgets the permission, so it costs one click each session.
+
+### Storing a copy in the browser
+
+Settings → **Data** → _Stored in this browser_. Open a tree first — by URL or
+folder — then copy it here. It reads back with no network **and no prompt**,
+which is the part a folder cannot do.
+
+Choose what to take:
+
+- **Catalogue and drawings** — 0.85 GB across 642 files. Plates, parts,
+  drawings, exploded views. This is the default and what most people want.
+- **Everything** — 15.30 GB across 43,915 files. Adds the repair
+  documentation, which is 94 % of that.
+
+Then: **Copy the open tree here**. It shows progress, can be stopped, and
+continues where it left off if you come back — files already stored at the same
+size are skipped. A file that cannot be read is counted and the rest carry on.
+
+Once there is a copy, **Open the stored copy** switches to it and remembers the
+choice, so later visits go straight there with nothing to click.
+
+> **The browser decides how much space you get**, and it is often less than a
+> full tree — measured at 7.52 GB granted on a machine with far more free disk.
+> dialogysx checks before it starts and refuses with both figures rather than
+> failing an hour in. If _Everything_ will not fit, the catalogue almost
+> certainly will.
+
+After a successful copy the browser is asked to keep the data permanently. If
+it agrees, the section says so; if not, it says the copy may be evicted when
+the device runs short of space.
+
+**Delete the stored copy** frees it again.
+
+## 5. Finding a part
 
 The bar across the top identifies the vehicle; everything below depends on it.
 
@@ -140,7 +193,7 @@ The assembly panel offers **hide N with no parts**. Two thirds of assemblies
 can be empty for a given vehicle, so this is on by default — the count tells
 you what is hidden rather than silently shortening the list.
 
-## 5. Narrowing a vehicle
+## 6. Narrowing a vehicle
 
 This is the part worth understanding, because it is where the catalogue is
 unlike a normal parts list.
@@ -192,7 +245,7 @@ say. If you have a VIN report, its options list maps onto these criteria fairly
 directly — but nothing decodes a VIN locally, because the discs contain no VIN
 decoder.
 
-## 6. Repair documentation
+## 7. Repair documentation
 
 The **Repair documentation** tab. It needs only a **model** — no vehicle, no
 assembly — because documents are indexed by vehicle _family_.
@@ -205,7 +258,7 @@ If a model has none, it says so and why: its name is not in
 `pr/FamilleModeleAll.dat`, which maps a model to a family — so the original has
 none for it either. That is different from a broken tree.
 
-## 7. Language
+## 8. Language
 
 Settings → **Language**. Two independent settings, and the distinction matters:
 
@@ -221,7 +274,7 @@ per language. Several countries share a language and each tariff names only what
 is sold there, so coverage is partial by design: `GB/en` names 37.8 % of
 references. An unnamed part shows _not in this tariff_ rather than a blank.
 
-## 8. Serving a tree to other people
+## 9. Serving a tree to other people
 
 Any static host that honours `Range` works — no application server.
 
@@ -241,7 +294,7 @@ Two things that will catch you:
 - **Mixed content.** A page served over HTTPS cannot read a tree over plain
   HTTP; browsers block it. Serve both over HTTPS, or both over HTTP.
 
-## 9. When something looks wrong
+## 10. When something looks wrong
 
 | symptom                                              | cause                                                                        |
 | ---------------------------------------------------- | ---------------------------------------------------------------------------- |
@@ -249,10 +302,11 @@ Two things that will catch you:
 | Criteria and assemblies show codes (`MOT3`, `1010A`) | `criteria` was not imported, or the catalogue language is missing            |
 | No drawing, parts list fine                          | `drawings` was not imported                                                  |
 | Model list shows codes, not names                    | `pr/ListePRModele` missing — reimport `criteria`                             |
-| Repair tab is empty for a model                      | that model is in no documentation family — see §6                            |
+| Repair tab is empty for a model                      | that model is in no documentation family — see §7                            |
 | Everything empty, no error                           | for an HTTP tree, `csfs-manifest.json` is missing — run `dialogysx manifest` |
+| Stored copy will not take _Everything_               | the browser's quota is smaller than the tree — see §4                        |
 | A remembered folder asks for permission again        | expected; browsers drop it on reload                                         |
-| Nothing loads over HTTPS from an HTTP tree           | mixed content — see §8                                                       |
+| Nothing loads over HTTPS from an HTTP tree           | mixed content — see §9                                                       |
 
 To check the tree itself rather than guess:
 
@@ -261,7 +315,7 @@ dialogysx verify -d ./data     # every dataset: record length, key order, pointe
 dialogysx docs -d ./data       # sweep the documentation indexes
 ```
 
-## 10. What not to rely on
+## 11. What not to rely on
 
 The applicability rules were recovered by reading the original program, and
 every plate in the catalogue parses with every byte consumed.

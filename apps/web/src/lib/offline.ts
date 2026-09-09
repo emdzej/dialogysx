@@ -200,11 +200,21 @@ export function fits(
   return { ok: available === undefined || needed <= available, needed, available };
 }
 
-/** A size in the units a person reads. */
+/**
+ * A size in the units a person reads.
+ *
+ * There is a KB tier because the first version went straight from bytes to
+ * megabytes, so 7,168 bytes rendered as "0 MB" — visibly wrong on screen, and
+ * missed by tests that checked a byte-scale value and a megabyte-scale value
+ * and nothing in between.
+ *
+ * Decimal units, matching what a disc's own figures are quoted in.
+ */
 export function formatBytes(n: number, locale = "en"): string {
-  if (n < 1024) return `${n} B`;
-  const mb = n / 1e6;
-  if (mb < 1000)
-    return `${mb.toLocaleString(locale, { maximumFractionDigits: mb < 10 ? 1 : 0 })} MB`;
+  const round = (value: number, unit: string) =>
+    `${value.toLocaleString(locale, { maximumFractionDigits: value < 10 ? 1 : 0 })} ${unit}`;
+  if (n < 1000) return `${n} B`;
+  if (n < 1e6) return round(n / 1e3, "KB");
+  if (n < 1e9) return round(n / 1e6, "MB");
   return `${(n / 1e9).toLocaleString(locale, { maximumFractionDigits: 2 })} GB`;
 }

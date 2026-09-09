@@ -237,6 +237,24 @@ describe("formatBytes", () => {
     expect(formatBytes(15_304_228_386)).toBe("15.3 GB");
     expect(formatBytes(852_000_000)).toBe("852 MB");
   });
+
+  it("does not skip the kilobytes", () => {
+    // The gap that shipped: bytes straight to megabytes, so 7,168 bytes read
+    // as "0 MB" on screen. The earlier tests checked a byte value and a
+    // megabyte value and never looked in between.
+    expect(formatBytes(7_168)).toBe("7.2 KB");
+    expect(formatBytes(1_024)).toBe("1 KB");
+    expect(formatBytes(40_960)).toBe("41 KB");
+    expect(formatBytes(999_999)).toBe("1,000 KB");
+  });
+
+  it("changes unit at each boundary and never renders zero for real bytes", () => {
+    // A size that exists must never print as 0 of anything.
+    for (const n of [1, 999, 1_000, 999_999, 1e6, 999_999_999, 1e9, 15_304_228_386]) {
+      expect(formatBytes(n), String(n)).not.toMatch(/^0(\.0)? /);
+    }
+    expect(formatBytes(0)).toBe("0 B");
+  });
 });
 
 describe("fits", () => {

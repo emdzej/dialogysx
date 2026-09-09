@@ -11,6 +11,7 @@
  * calls, the reactive state, and the reading of the source's own manifest.
  */
 import type { FileSource } from "@dialogysx/catalogue";
+import { walkFileSystem } from "@emdzej/csfs-core";
 import { opfsFileSystem, persist, quota, clearNamespace } from "@emdzej/csfs-opfs";
 import {
   fits,
@@ -93,7 +94,7 @@ class Offline {
         return;
       }
       const fs = await this.open();
-      const plan = planCopy(sizes, (await heldSizes()) ?? {}, scope);
+      const plan = planCopy(sizes, await heldSizes(), scope);
 
       // Asked before starting. A browser grants a fraction of free disk and it
       // is routinely less than a whole tree, so this is the difference between
@@ -115,6 +116,15 @@ class Offline {
         totalBytes: plan.bytes,
         current: "",
       };
+
+      // Copied explicitly, because it cannot list itself and so is absent from
+      // the plan. Without it the stored tree is readable — OPFS lists for
+      // itself — but not *self-describing*, which it should be if it is ever
+      // exported or served.
+      const manifestBytes = await source.readAll(MANIFEST).catch(() => undefined);
+      if (manifestBytes) {
+        await fs.write(`/${MANIFEST}`, manifestBytes).catch(() => {});
+      }
 
       const result = await runCopy(
         plan,
@@ -150,7 +160,15 @@ class Offline {
     this.controller?.abort();
   }
 
-  /** Throw the copy away. */
+  /**
+   * Throw the copy away.
+   *
+   * The namespace directory reappears immediately, empty: the `refresh()`
+   * below re-opens it, and `opfsFileSystem` creates what it opens. The files
+   * are gone and the usage figure drops, which is what matters — an empty
+   * directory is not a leak, and chasing it would mean either not refreshing
+   * afterwards or not creating on open.
+   */
   async clear(): Promise<void> {
     await clearNamespace(NAMESPACE).catch(() => {});
     this.outcome = undefined;
@@ -174,30 +192,44 @@ async function manifestSizes(source: FileSource): Promise<Sizes | undefined> {
   }
 }
 
-/** What OPFS holds, by path, so a copy can resume. */
-async function heldSizes(): Promise<Sizes | undefined> {
+/**
+ * What OPFS holds, by path, so a copy can resume.
+ *
+ * **Walked, not read from a manifest**, and the first version got this wrong
+ * in a way that made the whole feature look broken. `csfs-manifest.json`
+ * cannot appear in its own file list, so it was never in the copy plan, so it
+ * was never written — and reading it back to find out what was stored then
+ * found nothing. A 0.85 GB copy would finish and the interface would say
+ * nothing was stored, with no way to open or delete it.
+ *
+ * Walking has no such circularity, and it is the better answer anyway: OPFS is
+ * a real directory tree that lists itself, so this reports what is *actually*
+ * there rather than what something claims. A copy interrupted half way is
+ * described accurately.
+ */
+async function heldSizes(): Promise<Sizes> {
+  const out: Record<string, number> = {};
   try {
     const fs = await opfsFileSystem({ namespace: NAMESPACE });
-    const bytes = await fs.read(`/${MANIFEST}`);
-    if (!bytes) return {};
-    // The copy carries the manifest across, so what is held describes itself.
-    // Sizes are re-checked against OPFS rather than trusted, since a cancelled
-    // copy leaves the manifest claiming files it never wrote.
-    const claimed = (JSON.parse(new TextDecoder().decode(bytes)) as { files?: Sizes }).files ?? {};
-    const actual: Record<string, number> = {};
-    for (const path of Object.keys(claimed)) {
-      const stat = await fs.stat(path);
-      if (stat?.kind === "file") actual[path] = stat.size;
+    for await (const entry of walkFileSystem(fs, "/")) {
+      if (entry.kind !== "file") continue;
+      // `entry.size` is **0 here**, and silently. A handle-based backend does
+      // not learn a size from a directory listing — it has to open the file —
+      // so `WalkEntry.size` is documented as 0 for backends that cannot say.
+      // Taking it at face value gave "3 files · 0 B" on screen, and worse:
+      // `planCopy` compares sizes, so nothing ever matched and resume quietly
+      // did nothing.
+      const stat = await fs.stat(entry.path);
+      out[entry.path] = stat?.size ?? 0;
     }
-    return actual;
   } catch {
-    return {};
+    // An unreadable store is an empty one as far as planning goes.
   }
+  return out;
 }
 
 async function heldInOpfs(): Promise<OfflineState> {
-  const sizes = (await heldSizes()) ?? {};
-  const values = Object.values(sizes);
+  const values = Object.values(await heldSizes());
   return { files: values.length, bytes: values.reduce((a, b) => a + b, 0) };
 }
 

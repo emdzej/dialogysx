@@ -116,6 +116,18 @@
   function onKey(event: KeyboardEvent): void {
     if (event.key === "Escape" && !firstRun) onClose();
   }
+
+  /*
+   * Re-read the stored copy whenever this opens.
+   *
+   * The store reads it once at module load, which is stale by the time anyone
+   * opens this: a copy may have finished in another tab, storage may have been
+   * evicted, or the browser may have granted more room. Cheap enough to just
+   * ask again.
+   */
+  $effect(() => {
+    void offline.refresh();
+  });
 </script>
 
 <svelte:window onkeydown={onKey} />
@@ -350,13 +362,22 @@
               <button type="button" onclick={() => onOpenOffline?.()} data-testid="offline-open">
                 {ui("offline.open")}
               </button>
+            {/if}
+            <!--
+              Clearing is offered whenever the browser reports *any* usage, not
+              only when a tree was recognised. A cancelled copy, or one from an
+              older version, leaves bytes that nothing here would list — and
+              storage you cannot reclaim from the page that wrote it is a trap.
+            -->
+            {#if offline.held.files > 0 || (offline.storage.usage ?? 0) > 65536}
               <button
                 type="button"
                 class="danger"
                 onclick={() => offline.clear()}
                 data-testid="offline-delete"
               >
-                <Trash2 size={14} strokeWidth={1.9} /> {ui("offline.delete")}
+                <Trash2 size={14} strokeWidth={1.9} />
+                {offline.held.files > 0 ? ui("offline.delete") : ui("offline.clearAnyway")}
               </button>
             {/if}
           </div>
